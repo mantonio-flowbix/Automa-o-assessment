@@ -1,0 +1,13 @@
+{
+  "host": "VMPLNX5081",
+  "collected_at": "2026-09-08T03:00:00-0300",
+  "os": {"name": "ubuntu", "version": "20.04", "pretty_name": "Ubuntu 20.04.6 LTS"},
+  "cpu": {"count": 4, "load_avg_1": 3.6, "load_avg_5": 3.2, "load_avg_15": 2.9, "load_pct_1min": 90.0},
+  "memory": {"total_mb": 8192.0, "available_mb": 3000.0, "used_pct": 63.4},
+  "disk": [
+    {"path": "/", "total_gb": 100.0, "used_gb": 40.0, "used_pct": 40.0}
+  ],
+  "zabbix_binary_versions": {"zabbix_proxy": "6.0.31"},
+  "listening_ports": [10061],
+  "uptime_seconds": 5184000
+}

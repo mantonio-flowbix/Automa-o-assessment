@@ -1,0 +1,12 @@
+{
+  "version": "11.6.1",
+  "datasources": [
+    {"id": 1, "type": "mysql", "name": "Zabbix MySQL"}
+  ],
+  "dashboards": [
+    {"id": 1, "title": "Compliance | MX LJ GbTech"},
+    {"id": 2, "title": "teste dashboard"},
+    {"id": 3, "title": "Visão Geral - Lojas"}
+  ],
+  "backend_db_type": "sqlite3"
+}

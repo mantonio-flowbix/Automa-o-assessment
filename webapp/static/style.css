@@ -1,0 +1,60 @@
+:root {
+  --bg: #f5f6f8;
+  --card-bg: #ffffff;
+  --text: #1c2230;
+  --muted: #667085;
+  --border: #e4e7ec;
+  --accent: #0f172a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header { background: var(--accent); color: white; padding: 24px; }
+header h1 { margin: 0 0 4px; font-size: 20px; }
+header .back { color: #b6c2d9; text-decoration: none; font-size: 13px; }
+main { max-width: 720px; margin: 0 auto; padding: 24px; }
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.card h2 { margin-top: 0; font-size: 16px; }
+label { display: block; font-size: 13px; color: var(--muted); margin-top: 12px; margin-bottom: 4px; }
+input, textarea, select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+fieldset { border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; padding: 12px; }
+legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
+button {
+  margin-top: 16px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button:hover { opacity: 0.9; }
+#config-status { margin-left: 12px; font-size: 13px; color: var(--muted); }
+#steps { list-style: none; padding: 0; margin-top: 16px; }
+#steps li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+#result { margin-top: 12px; font-size: 14px; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.hint code { background: #f0f1f3; padding: 1px 4px; border-radius: 4px; }
+.muted { color: var(--muted); }
+.warning { font-size: 13px; color: #b42318; background: #fef3f2; border: 1px solid #fda29b; border-radius: 6px; padding: 8px 12px; margin-top: 8px; }
+.client-list, .reports-list { list-style: none; padding: 0; }
+.client-list li, .reports-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.client-list a, .reports-list a { color: var(--accent); text-decoration: none; font-weight: 600; }

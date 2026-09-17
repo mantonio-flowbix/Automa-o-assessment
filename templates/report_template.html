@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Assessment de Zabbix e Infraestrutura — {{ client_name }}</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card-bg: #ffffff;
+    --text: #1c2230;
+    --muted: #667085;
+    --border: #e4e7ec;
+    --critical: #b42318;
+    --critical-bg: #fef3f2;
+    --warning: #b54708;
+    --warning-bg: #fffaeb;
+    --info: #175cd3;
+    --info-bg: #eff8ff;
+    --manual: #6941c6;
+    --manual-bg: #f9f5ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: #0f172a;
+    color: white;
+    padding: 32px 24px;
+  }
+  header h1 { margin: 0 0 4px; font-size: 22px; }
+  header p { margin: 0; color: #b6c2d9; font-size: 14px; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px; }
+  .summary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  .summary .card {
+    flex: 1;
+    min-width: 140px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .summary .card .num { font-size: 28px; font-weight: 700; }
+  .summary .card .label { font-size: 13px; color: var(--muted); }
+  section.topic { margin-bottom: 32px; }
+  section.topic h2 {
+    font-size: 18px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 8px;
+  }
+  .finding {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .finding.critical { border-left-color: var(--critical); }
+  .finding.warning { border-left-color: var(--warning); }
+  .finding.info { border-left-color: var(--info); }
+  .finding.manual_review { border-left-color: var(--manual); }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .badge.critical { color: var(--critical); background: var(--critical-bg); }
+  .badge.warning { color: var(--warning); background: var(--warning-bg); }
+  .badge.info { color: var(--info); background: var(--info-bg); }
+  .badge.manual_review { color: var(--manual); background: var(--manual-bg); }
+  .finding h3 { margin: 0 0 8px; font-size: 15px; }
+  .finding p { margin: 4px 0; font-size: 14px; }
+  .finding .recommendation { color: var(--muted); }
+  .finding .recommendation strong { color: var(--text); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; }
+  .errors-box {
+    background: var(--warning-bg);
+    border: 1px solid #fedf89;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Assessment do Ambiente Zabbix e Infraestrutura</h1>
+  <p>{{ client_name }} · Gerado em {{ generated_at }} · Versão-alvo Zabbix {{ target_zabbix_version }}</p>
+</header>
+
+<main>
+
+{% if errors %}
+<div class="errors-box">
+  <strong>Fontes não coletadas:</strong>
+  <ul>
+    {% for source, message in errors.items() %}
+    <li>{{ source }}: {{ message }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="summary">
+  <div class="card"><div class="num">{{ total_findings }}</div><div class="label">Total de achados</div></div>
+  <div class="card"><div class="num">{{ counts.get('critical', 0) }}</div><div class="label">Críticos</div></div>
+  <div class="card"><div class="num">{{ counts.get('warning', 0) }}</div><div class="label">Atenção</div></div>
+  <div class="card"><div class="num">{{ counts.get('info', 0) }}</div><div class="label">Informativos</div></div>
+  <div class="card"><div class="num">{{ counts.get('manual_review', 0) }}</div><div class="label">Revisão Manual</div></div>
+</div>
+
+{% for section, findings in by_section.items() %}
+<section class="topic">
+  <h2>{{ section }}</h2>
+  {% for f in findings %}
+  <div class="finding {{ f.severity.value }}">
+    <span class="badge {{ f.severity.value }}">{{ severity_labels[f.severity] }}</span>
+    <h3>{{ f.title }}</h3>
+    <p>{{ f.description }}</p>
+    <p class="recommendation"><strong>Recomendação:</strong> {{ f.recommendation }}</p>
+    {% if f.estimated_effort_hours %}
+    <p class="recommendation"><strong>Esforço estimado:</strong> {{ f.estimated_effort_hours }}h</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+
+</main>
+
+<footer>Gerado automaticamente por flowbix-assess · uso interno Flowbix</footer>
+
+</body>
+</html>

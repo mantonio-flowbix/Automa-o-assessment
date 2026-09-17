@@ -1,0 +1,14 @@
+{
+  "host": "zabbix-server-varejo-prd",
+  "collected_at": "2026-09-08T03:00:00-0300",
+  "os": {"name": "ubuntu", "version": "20.04", "pretty_name": "Ubuntu 20.04.6 LTS"},
+  "cpu": {"count": 8, "load_avg_1": 5.2, "load_avg_5": 4.8, "load_avg_15": 4.1, "load_pct_1min": 65.0},
+  "memory": {"total_mb": 32768.0, "available_mb": 4096.0, "used_pct": 87.5},
+  "disk": [
+    {"path": "/", "total_gb": 200.0, "used_gb": 150.0, "used_pct": 75.0},
+    {"path": "/var/lib/mysql", "total_gb": 2000.0, "used_gb": 1800.0, "used_pct": 90.0}
+  ],
+  "zabbix_binary_versions": {"zabbix_server": "6.4.10"},
+  "listening_ports": [10051],
+  "uptime_seconds": 5184000
+}

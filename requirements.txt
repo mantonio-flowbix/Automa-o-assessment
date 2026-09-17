@@ -1,0 +1,7 @@
+requests>=2.31
+PyYAML>=6.0
+Jinja2>=3.1
+PyMySQL>=1.1
+Flask>=3.0
+python-pptx>=1.0
+pytest>=8.0

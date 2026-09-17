@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>{{ raw.client.name if raw.client else slug }} — flowbix-assess</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <h1>{{ raw.client.name if raw.client else slug }}</h1>
+  <p><a href="{{ url_for('index') }}" class="back">&larr; Todos os clientes</a></p>
+</header>
+<main>
+
+<section class="card">
+  <h2>Credenciais</h2>
+  <p class="hint">URL, thresholds e datas de validade ficam em <code>data/clients/{{ slug }}/config.yaml</code>. Tokens e senhas ficam à parte, em <code>data/clients/{{ slug }}/.env</code> — nunca aparecem de volta nesta página, nem são exibidos aqui uma vez salvos.</p>
+  <form id="config-form">
+    <label>Nome do cliente</label>
+    <input type="text" name="client_name" value="{{ raw.client.name if raw.client else '' }}" required>
+
+    <label>Versão-alvo do Zabbix</label>
+    <input type="text" name="target_zabbix_version" value="{{ raw.client.target_zabbix_version if raw.client else '7.0' }}">
+
+    <label>Tipo de ambiente</label>
+    <select name="hosting_type">
+      {% set current_hosting = raw.client.hosting_type if raw.client else '' %}
+      <option value="" {{ 'selected' if not current_hosting }}>Não informado / genérico</option>
+      <option value="cloud" {{ 'selected' if current_hosting == 'cloud' }}>Nuvem (AWS/Azure/GCP)</option>
+      <option value="on-premise" {{ 'selected' if current_hosting == 'on-premise' }}>On-premise</option>
+      <option value="hybrid" {{ 'selected' if current_hosting == 'hybrid' }}>Híbrido</option>
+    </select>
+    <p class="hint">Só muda a redação de 1 achado (alta disponibilidade/custo do banco). Todo o resto (SO, CPU/RAM/disco, Zabbix) já funciona igual em nuvem ou on-premise.</p>
+
+    <fieldset>
+      <legend>Zabbix API (opcional)</legend>
+      {% if zabbix_token_expired %}
+      <p class="warning">⚠️ Token expirado em {{ zabbix_token_expired }} — a validação vai pular essa fonte até você atualizar.</p>
+      {% endif %}
+      <label>URL</label>
+      <input type="text" name="zabbix_url" value="{{ raw.zabbix.url if raw.zabbix else '' }}" placeholder="https://zabbix.cliente.com">
+      <label>Token de API</label>
+      <input type="password" name="zabbix_token" placeholder="{{ '(mantém o salvo se deixar em branco)' if has_zabbix_token else '' }}">
+      <label>Validade do token</label>
+      <input type="date" name="zabbix_token_expires_at" value="{{ raw.zabbix.token_expires_at if raw.zabbix else '' }}">
+    </fieldset>
+
+    <fieldset>
+      <legend>MySQL (opcional)</legend>
+      <label>Host</label>
+      <input type="text" name="mysql_host" value="{{ raw.mysql.host if raw.mysql else '' }}">
+      <label>Porta</label>
+      <input type="number" name="mysql_port" value="{{ raw.mysql.port if raw.mysql else 3306 }}">
+      <label>Usuário</label>
+      <input type="text" name="mysql_user" value="{{ raw.mysql.user if raw.mysql else '' }}">
+      <label>Senha</label>
+      <input type="password" name="mysql_password" placeholder="{{ '(mantém a salva se deixar em branco)' if has_mysql_password else '' }}">
+      <label>Database</label>
+      <input type="text" name="mysql_database" value="{{ raw.mysql.database if raw.mysql else 'zabbix' }}">
+    </fieldset>
+
+    <fieldset>
+      <legend>Grafana (opcional — coleta ainda não conectada ao relatório, chega em breve)</legend>
+      {% if grafana_token_expired %}
+      <p class="warning">⚠️ Token expirado em {{ grafana_token_expired }}.</p>
+      {% endif %}
+      <label>URL</label>
+      <input type="text" name="grafana_url" value="{{ raw.grafana.url if raw.grafana else '' }}" placeholder="https://grafana.cliente.com">
+      <label>Token de API</label>
+      <input type="password" name="grafana_token" placeholder="{{ '(mantém o salvo se deixar em branco)' if has_grafana_token else '' }}">
+      <label>Validade do token</label>
+      <input type="date" name="grafana_token_expires_at" value="{{ raw.grafana.token_expires_at if raw.grafana else '' }}">
+    </fieldset>
+
+    <fieldset>
+      <legend>Hosts de infraestrutura (um por linha: nome,papel)</legend>
+      <textarea name="infra_hosts" rows="4" placeholder="zabbix-server-varejo-prd,server&#10;VMPLNX5081,proxy">{% for h in (raw.infra.hosts if raw.infra else []) %}{{ h.name }},{{ h.role or '' }}
+{% endfor %}</textarea>
+      <p class="hint">O <code>nome</code> precisa bater com o campo <code>"host"</code> dentro do JSON do probe.</p>
+    </fieldset>
+
+    <button type="submit">Salvar credenciais</button>
+    <span id="config-status"></span>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Coleta de infraestrutura (SSH manual no cliente)</h2>
+  <p class="hint">
+    1. Baixe o script abaixo e rode via SSH no terminal do cliente (o servidor
+    nunca acessa a rede do cliente diretamente).<br>
+    2. Suba aqui o(s) <code>.json</code> que ele imprimir.
+  </p>
+  <p><a href="{{ url_for('download_probe_script', slug=slug) }}">⬇️ Baixar script de coleta (flowbix_probe_{{ slug }}.py)</a></p>
+  <p class="hint"><code>ssh usuario@host 'python3 -' &lt; flowbix_probe_{{ slug }}.py &gt; resultado.json</code></p>
+
+  <form id="upload-form">
+    <input type="file" name="infra_files" accept=".json" multiple>
+    <button type="submit">Enviar arquivo(s) coletados</button>
+    <span id="upload-status"></span>
+  </form>
+  <p class="hint">
+    Arquivos já recebidos:
+    {% if infra_files %}{{ infra_files | join(', ') }}{% else %}<em>nenhum ainda</em>{% endif %}
+  </p>
+</section>
+
+<section class="card">
+  <h2>Rodar validação</h2>
+  <p class="hint">Roda Zabbix → MySQL → Infraestrutura (o que estiver configurado/disponível) e gera o relatório consolidado. Uma fonte que falhar não impede as outras.</p>
+  <button id="run-btn">Rodar validação</button>
+  <ul id="steps"></ul>
+  <div id="result"></div>
+</section>
+
+<section class="card">
+  <h2>Relatórios gerados</h2>
+  {% if reports %}
+  <ul class="reports-list">
+    {% for r in reports %}
+    <li><a href="{{ url_for('serve_report', slug=slug, filename=r) }}" target="_blank">{{ r }}</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nenhum relatório gerado ainda.</p>
+  {% endif %}
+</section>
+
+</main>
+
+<script>
+const slug = {{ slug | tojson }};
+
+document.getElementById('config-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('config-status');
+  status.textContent = 'Salvando...';
+  try {
+    const resp = await fetch(`/clients/${slug}/config`, { method: 'POST', body: new FormData(e.target) });
+    const data = await resp.json();
+    status.textContent = data.status === 'ok' ? 'Salvo.' : 'Erro ao salvar.';
+  } catch (err) {
+    status.textContent = 'Erro ao salvar: ' + err;
+  }
+});
+
+const STEP_LABELS = {
+  zabbix: 'Zabbix API',
+  mysql: 'MySQL',
+  infra: 'Infraestrutura',
+  report: 'Gerando relatório final',
+};
+
+document.getElementById('upload-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('upload-status');
+  status.textContent = 'Enviando...';
+  try {
+    const resp = await fetch(`/clients/${slug}/infra/upload`, { method: 'POST', body: new FormData(e.target) });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      status.textContent = `Enviado: ${data.saved.join(', ')}`;
+    } else if (data.status === 'partial') {
+      status.textContent = `Enviado: ${data.saved.join(', ')} — erros: ${data.errors.join('; ')}`;
+    } else {
+      status.textContent = `Erro: ${data.message}`;
+    }
+  } catch (err) {
+    status.textContent = 'Erro ao enviar: ' + err;
+  }
+});
+
+document.getElementById('run-btn').addEventListener('click', async () => {
+  const stepsEl = document.getElementById('steps');
+  const resultEl = document.getElementById('result');
+  stepsEl.innerHTML = '';
+  resultEl.innerHTML = '';
+
+  for (const step of ['zabbix', 'mysql', 'infra', 'report']) {
+    const li = document.createElement('li');
+    li.textContent = `⏳ ${STEP_LABELS[step]}...`;
+    stepsEl.appendChild(li);
+
+    try {
+      const resp = await fetch(`/clients/${slug}/run/${step}`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        li.textContent = `✅ ${STEP_LABELS[step]} — ${JSON.stringify(data.summary)}`;
+      } else if (data.status === 'skipped') {
+        li.textContent = `⏭️ ${STEP_LABELS[step]} — ${data.message}`;
+      } else {
+        li.textContent = `❌ ${STEP_LABELS[step]} — ${data.message}`;
+      }
+      if (step === 'report' && data.report_url) {
+        resultEl.innerHTML =
+          `<a href="${data.report_url}" target="_blank">Abrir relatório (HTML)</a>` +
+          (data.pptx_url ? ` &nbsp;|&nbsp; <a href="${data.pptx_url}">Baixar apresentação (PPTX)</a>` : '');
+      }
+    } catch (err) {
+      li.textContent = `❌ ${STEP_LABELS[step]} — ${err}`;
+    }
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "host": "VMPLNX5099",
+  "collected_at": "2026-09-08T03:00:00-0300",
+  "os": {"name": "ubuntu", "version": "22.04", "pretty_name": "Ubuntu 22.04.4 LTS"},
+  "cpu": {"count": 4, "load_avg_1": 1.0, "load_avg_5": 0.9, "load_avg_15": 0.8, "load_pct_1min": 25.0},
+  "memory": {"total_mb": 8192.0, "available_mb": 6000.0, "used_pct": 26.8},
+  "disk": [
+    {"path": "/", "total_gb": 100.0, "used_gb": 30.0, "used_pct": 30.0}
+  ],
+  "zabbix_binary_versions": {"zabbix_proxy": "6.4.10"},
+  "listening_ports": [],
+  "uptime_seconds": 864000
+}

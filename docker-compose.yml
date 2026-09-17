@@ -1,0 +1,26 @@
+services:
+  flowbix-assess:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs
+    expose:
+      - "5050" # only reachable from the caddy service, not the host network
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - flowbix-assess
+    ports:
+      - "443:443"
+    environment:
+      - APP_BASIC_AUTH_USER=${APP_BASIC_AUTH_USER:?set APP_BASIC_AUTH_USER in .env}
+      - APP_BASIC_AUTH_HASH=${APP_BASIC_AUTH_HASH:?set APP_BASIC_AUTH_HASH in .env, see README}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+volumes:
+  caddy_data:

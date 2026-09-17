@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+/report*.html
+/report*.pptx
+configs/*.yaml
+!configs/example.yaml
+.env
+data/

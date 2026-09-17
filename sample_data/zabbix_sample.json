@@ -1,0 +1,130 @@
+{
+  "version": "6.4.10",
+  "proxies": [
+    {"proxyid": "1", "name": "VMPLNX5081", "tls_connect": "2"},
+    {"proxyid": "2", "name": "VMPLNX5099", "tls_connect": "1"}
+  ],
+  "hosts": [
+    {"hostid": "1", "host": "zabbix-server-varejo-prd", "name": "zabbix-server-varejo-prd"}
+  ],
+  "unsupported_items_count": 394,
+  "unsupported_items_sample": [
+    {"itemid": "900", "name": "Ping externo", "key_": "net.tcp.service[tcp,,80]", "error": "Timeout while connecting to host"},
+    {"itemid": "901", "name": "Script customizado", "key_": "system.run[check.sh]", "error": "Timeout while executing a shell script"},
+    {"itemid": "902", "name": "Consulta ODBC laboratorio", "key_": "db.odbc.select[...]", "error": "[unixODBC][FATAL] remaining connection slots are reserved"},
+    {"itemid": "903", "name": "Antivirus status", "key_": "vfs.file.contents[status.txt]", "error": "received empty value"},
+    {"itemid": "904", "name": "Agente customizado", "key_": "system.run[whoami]", "error": "Unsupported item key"}
+  ],
+  "media_types": [
+    {"mediatypeid": "5", "name": "ServiceNow", "type": "4"},
+    {"mediatypeid": "1", "name": "Email", "type": "0"}
+  ],
+  "dashboards": [
+    {"dashboardid": "1", "name": "Mapa"},
+    {"dashboardid": "2", "name": "teste fabis"},
+    {"dashboardid": "3", "name": "Relatório Antivírus"}
+  ],
+  "templates": [
+    {
+      "templateid": "100",
+      "host": "3001_Template_PDV_ER",
+      "name": "3001_Template_PDV_ER",
+      "items": [
+        {
+          "itemid": "1", "name": "Compliance - Permissao de pasta (C:\\Clisitef)",
+          "key_": "vfs.file.exists[C:\\Clisitef]", "delay": "1h", "history": "90d", "trends": "365d",
+          "value_type": "4", "type": "0", "master_itemid": "0",
+          "triggers": [{"triggerid": "10"}], "preprocessing": []
+        },
+        {
+          "itemid": "2", "name": "Compliance - Permissao (dependente)",
+          "key_": "compliance.dep", "delay": "0", "history": "90d", "trends": "365d",
+          "value_type": "4", "type": "18", "master_itemid": "1",
+          "triggers": [], "preprocessing": [{"type": "1", "params": "trim"}]
+        }
+      ],
+      "discovery_rules": [{"itemid": "d1", "name": "disc1"}]
+    },
+    {
+      "templateid": "200",
+      "host": "3300_Grupo_PDV_LABORATORIOS",
+      "name": "3300_Grupo_PDV_LABORATORIOS",
+      "items": [
+        {
+          "itemid": "3", "name": "Temperatura Laboratorio",
+          "key_": "sensor.temp", "delay": "10s", "history": "90d", "trends": "365d",
+          "value_type": "0", "type": "0", "master_itemid": "0",
+          "triggers": [], "preprocessing": []
+        },
+        {
+          "itemid": "4", "name": "Umidade Laboratorio",
+          "key_": "sensor.humidity", "delay": "15s", "history": "90d", "trends": "365d",
+          "value_type": "0", "type": "0", "master_itemid": "0",
+          "triggers": [], "preprocessing": []
+        }
+      ],
+      "discovery_rules": []
+    },
+    {
+      "templateid": "700",
+      "host": "7300_Template_Cisco_Meraki_Device_MX_ER_GBTech",
+      "name": "7300_Template_Cisco_Meraki_Device_MX_ER_GBTech",
+      "items": [
+        {
+          "itemid": "5", "name": "VMware AirWatch: Get (Compliant)",
+          "key_": "airwatch.compliant", "delay": "5m", "history": "90d", "trends": "365d",
+          "value_type": "0", "type": "0", "master_itemid": "0",
+          "triggers": [{"triggerid": "20"}],
+          "preprocessing": [
+            {"type": "1", "params": "trim"},
+            {"type": "1", "params": "trim"},
+            {"type": "5", "params": "regex"},
+            {"type": "12", "params": "js"}
+          ]
+        }
+      ],
+      "discovery_rules": [
+        {"itemid": "d10", "name": "disc10"},
+        {"itemid": "d11", "name": "disc11"},
+        {"itemid": "d12", "name": "disc12"},
+        {"itemid": "d13", "name": "disc13"},
+        {"itemid": "d14", "name": "disc14"},
+        {"itemid": "d15", "name": "disc15"},
+        {"itemid": "d16", "name": "disc16"}
+      ],
+      "triggers": []
+    },
+    {
+      "templateid": "600",
+      "host": "6000_Template_Monitoramentos_Massivos",
+      "name": "6000_Template_Monitoramentos_Massivos",
+      "items": [
+        {
+          "itemid": "6", "name": "Consulta massiva ODBC",
+          "key_": "db.odbc.select[massivo]", "delay": "1m", "history": "90d", "trends": "365d",
+          "value_type": "0", "type": "11", "master_itemid": "0",
+          "error": "[unixODBC][FATAL] remaining connection slots are reserved for roles with the SUPERUSER attribute",
+          "triggers": [], "preprocessing": []
+        }
+      ],
+      "discovery_rules": [],
+      "triggers": [
+        {"triggerid": "30", "description": "CPU + RAM acima do limite", "expression": "last(/host/system.cpu.util)+last(/host/vm.memory.size[pused])>150"}
+      ]
+    }
+  ],
+  "host_cpu_stats": {
+    "zabbix-server-varejo-prd": {"avg": 62.4, "max": 95.1, "samples": 480}
+  },
+  "process_busy_stats": {
+    "zabbix-server-varejo-prd": {"poller": 45.0, "history syncer": 30.0},
+    "VMPLNX5081": {"poller": 88.0, "history syncer": 92.0},
+    "VMPLNX5099": {"poller": 20.0}
+  },
+  "housekeeping": {
+    "hk_history_global": "0",
+    "hk_history": "90",
+    "hk_trends_global": "1",
+    "hk_trends": "365"
+  }
+}

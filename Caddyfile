@@ -1,0 +1,18 @@
+# Reverse proxy in front of the Flask app: terminates TLS and gates access
+# with basic auth, since this server now stores real client credentials
+# (in each client's .env, see flowbix_assess/clientstore.py) and is reachable
+# by the whole team over the company network, not just 127.0.0.1.
+#
+# `tls internal` issues a self-signed cert from Caddy's own CA — fine for an
+# internal-only server without a public domain. If this VM already sits
+# behind company VPN/SSO, the `basic_auth` block below can be removed
+# (keep `tls internal` for encryption in transit either way).
+:443 {
+	tls internal
+
+	basic_auth {
+		{$APP_BASIC_AUTH_USER} {$APP_BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy flowbix-assess:5050
+}

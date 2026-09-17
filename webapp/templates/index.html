@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>flowbix-assess</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <h1>flowbix-assess</h1>
+  <p>Automação de assessment de Infraestrutura + Zabbix</p>
+</header>
+<main>
+
+<section class="card">
+  <h2>Clientes</h2>
+  {% if clients %}
+  <ul class="client-list">
+    {% for c in clients %}
+    <li><a href="{{ url_for('client_page', slug=c) }}">{{ c }}</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nenhum cliente ainda.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Novo cliente</h2>
+  <form method="post" action="{{ url_for('create_client') }}">
+    <label>Nome do cliente</label>
+    <input type="text" name="client_name" placeholder="Ex.: Grupo Boticário" required>
+    <button type="submit">Criar</button>
+  </form>
+</section>
+
+</main>
+</body>
+</html>

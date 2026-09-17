@@ -1,0 +1,63 @@
+# Config de exemplo — copie para configs/<cliente>.yaml e preencha.
+# Valores entre ${...} são lidos de variáveis de ambiente (nunca commitar segredo aqui).
+
+client:
+  name: "Grupo Boticário"
+  target_zabbix_version: "7.0"
+  hosting_type: "cloud"  # "cloud" | "on-premise" | "hybrid" — deixe em branco se não souber
+
+zabbix:
+  url: "https://zabbix.cliente.com"       # sem /api_jsonrpc.php, é adicionado automaticamente
+  token: "${ZABBIX_API_TOKEN}"            # gerar em Administration > API tokens (recomendado)
+  # user: "api-user"                      # alternativa: user/password (login clássico)
+  # password: "${ZABBIX_API_PASSWORD}"
+  verify_ssl: true
+  template_limit: null                    # ex.: 20 para smoke test rápido em ambientes grandes
+  hosts_of_interest:                      # hosts monitorados no próprio Zabbix (server/proxies)
+    - "zabbix-server-varejo-prd"
+    - "VMPLNX5081"
+    - "VMPLNX5099"
+
+mysql:
+  host: "db-readonly.cliente.internal"
+  port: 3306
+  user: "flowbix_ro"
+  password: "${MYSQL_PASSWORD}"
+  database: "zabbix"
+  check_history_age: false                # true faz SELECT MIN(clock) — pode ser lento em tabelas grandes
+
+# Infraestrutura (SO, CPU, RAM, disco, versão do binário Zabbix instalado).
+# Não tem API — os dados vêm do probe/flowbix_probe.py rodado manualmente via
+# SSH em cada máquina e copiado para uma pasta local (ver README > "Fluxo de infra").
+infra:
+  collected_dir: "./coletas"              # pasta com os JSONs do probe.py (ou use --infra-dir)
+  hosts:
+    - name: "zabbix-server-varejo-prd"
+      role: "server"
+    - name: "VMPLNX5081"
+      role: "proxy"
+    - name: "VMPLNX5099"
+      role: "proxy"
+
+# Opcional — fora de escopo por enquanto (Grafana não é responsabilidade
+# desta automação no momento). Só preencha se/quando decidirem cobrir.
+# grafana:
+#   url: "https://grafana.cliente.com"
+#   api_key: "${GRAFANA_API_KEY}"
+#   verify_ssl: true
+#   backend_db_type: null                 # "sqlite3" | "mysql" | "postgres" (preenchido manualmente)
+
+thresholds:
+  cpu_warning_pct: 50
+  cpu_critical_pct: 70
+  short_interval_seconds: 60
+  max_preprocessing_steps: 3
+  max_discovery_rules_per_template: 5
+  history_table_size_gb_warning: 500
+  unsupported_items_warning_count: 200
+  grafana_latest_known_version: "12.2.0"
+  media_types_deprecated_js:
+    - "ServiceNow"
+  mysql_eol_versions:
+    "5.7": "2023-10-31"
+    "8.0": "2026-04-30"
