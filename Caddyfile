@@ -12,7 +12,15 @@
 }
 
 :443 {
-	tls internal
+	# `on_demand`: the site block has no fixed hostname (people reach it by
+	# IP), so Caddy has no static host to pre-issue a cert for. Without this,
+	# every handshake fails with "no certificate available" — safe to enable
+	# here because the `internal` issuer has no external rate limits/abuse
+	# surface (unlike a public ACME CA), so it doesn't need the `ask`/
+	# `permission` gate that on-demand normally requires.
+	tls internal {
+		on_demand
+	}
 
 	basic_auth {
 		{$APP_BASIC_AUTH_USER} {$APP_BASIC_AUTH_HASH}
