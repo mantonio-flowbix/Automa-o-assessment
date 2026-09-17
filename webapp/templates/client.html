@@ -115,15 +115,12 @@
 
 <section class="card">
   <h2>Relatórios gerados</h2>
-  {% if reports %}
-  <ul class="reports-list">
+  <ul class="reports-list" id="reports-list">
     {% for r in reports %}
     <li><a href="{{ url_for('serve_report', slug=slug, filename=r) }}" target="_blank">{{ r }}</a></li>
     {% endfor %}
   </ul>
-  {% else %}
-  <p class="muted">Nenhum relatório gerado ainda.</p>
-  {% endif %}
+  <p class="muted" id="reports-empty" {% if reports %}style="display:none"{% endif %}>Nenhum relatório gerado ainda.</p>
 </section>
 
 </main>
@@ -195,6 +192,19 @@ document.getElementById('run-btn').addEventListener('click', async () => {
         resultEl.innerHTML =
           `<a href="${data.report_url}" target="_blank">Abrir relatório (HTML)</a>` +
           (data.pptx_url ? ` &nbsp;|&nbsp; <a href="${data.pptx_url}">Baixar apresentação (PPTX)</a>` : '');
+
+        document.getElementById('reports-empty').style.display = 'none';
+        const reportsList = document.getElementById('reports-list');
+        for (const [url, label] of [[data.report_url, 'HTML'], [data.pptx_url, 'PPTX']]) {
+          if (!url) continue;
+          const item = document.createElement('li');
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.textContent = decodeURIComponent(url.split('/').pop()) + ` (${label})`;
+          item.appendChild(link);
+          reportsList.prepend(item);
+        }
       }
     } catch (err) {
       li.textContent = `❌ ${STEP_LABELS[step]} — ${err}`;
