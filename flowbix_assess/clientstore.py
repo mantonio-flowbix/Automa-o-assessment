@@ -115,6 +115,14 @@ class ClientStore:
         files = list(self.reports_dir.glob("*.html")) + list(self.reports_dir.glob("*.pptx"))
         return sorted(files, key=lambda p: p.name, reverse=True)
 
+    def clear_reports(self) -> int:
+        """Deletes every generated report (HTML + PPTX) for this client.
+        Returns how many files were removed."""
+        files = self.list_reports()
+        for path in files:
+            path.unlink()
+        return len(files)
+
     @classmethod
     def list_all(cls) -> list:
         if not CLIENTS_DIR.exists():

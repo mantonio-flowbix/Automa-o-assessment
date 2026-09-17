@@ -1,10 +1,12 @@
 :root {
-  --bg: #f5f6f8;
+  --flowbix-red: #f60100;
+  --flowbix-red-dark: #cc0000;
+  --bg: #f7f5f5;
   --card-bg: #ffffff;
-  --text: #1c2230;
-  --muted: #667085;
-  --border: #e4e7ec;
-  --accent: #0f172a;
+  --text: #1a1a1a;
+  --muted: #666666;
+  --border: #ececec;
+  --accent: var(--flowbix-red);
 }
 * { box-sizing: border-box; }
 body {
@@ -13,48 +15,82 @@ body {
   background: var(--bg);
   color: var(--text);
 }
-header { background: var(--accent); color: white; padding: 24px; }
-header h1 { margin: 0 0 4px; font-size: 20px; }
-header .back { color: #b6c2d9; text-decoration: none; font-size: 13px; }
+header {
+  background: var(--flowbix-red);
+  color: white;
+  padding: 20px 24px;
+}
+.header-inner { display: flex; align-items: center; gap: 16px; max-width: 720px; margin: 0 auto; }
+header .logo { height: 40px; width: auto; border-radius: 4px; display: block; }
+header h1 { margin: 0 0 2px; font-size: 20px; }
+header p { margin: 0; font-size: 13px; opacity: 0.9; }
+header .back { color: white; text-decoration: none; font-size: 13px; opacity: 0.85; }
+header .back:hover { opacity: 1; text-decoration: underline; }
 main { max-width: 720px; margin: 0 auto; padding: 24px; }
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
-.card h2 { margin-top: 0; font-size: 16px; }
-label { display: block; font-size: 13px; color: var(--muted); margin-top: 12px; margin-bottom: 4px; }
+.card h2 { margin-top: 0; font-size: 16px; color: var(--text); }
+.section-header { display: flex; align-items: center; justify-content: space-between; }
+.section-header h2 { margin: 0; }
+label { display: block; font-size: 13px; color: var(--muted); margin-top: 12px; margin-bottom: 4px; font-weight: 500; }
 input, textarea, select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 9px 11px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 14px;
   font-family: inherit;
+  background: #fcfcfc;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-fieldset { border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; padding: 12px; }
-legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--flowbix-red);
+  box-shadow: 0 0 0 3px rgba(246, 1, 0, 0.12);
+  background: white;
+}
+fieldset { border: 1px solid var(--border); border-radius: 10px; margin-top: 16px; padding: 14px; }
+legend { font-size: 13px; color: var(--muted); padding: 0 6px; font-weight: 600; }
 button {
   margin-top: 16px;
-  background: var(--accent);
+  background: var(--flowbix-red);
   color: white;
   border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
+  padding: 10px 18px;
+  border-radius: 7px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+  transition: opacity 0.15s;
 }
-button:hover { opacity: 0.9; }
+button:hover { opacity: 0.88; }
+.btn-secondary {
+  background: transparent;
+  color: var(--flowbix-red-dark);
+  border: 1px solid var(--border);
+  margin-top: 0;
+  font-weight: 500;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.btn-secondary:hover { opacity: 1; background: #fdf2f2; border-color: #f3c9c9; }
 #config-status { margin-left: 12px; font-size: 13px; color: var(--muted); }
 #steps { list-style: none; padding: 0; margin-top: 16px; }
 #steps li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
 #result { margin-top: 12px; font-size: 14px; }
+#result a { color: var(--flowbix-red-dark); font-weight: 600; text-decoration: none; }
+#result a:hover { text-decoration: underline; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
 .hint code { background: #f0f1f3; padding: 1px 4px; border-radius: 4px; }
 .muted { color: var(--muted); }
 .warning { font-size: 13px; color: #b42318; background: #fef3f2; border: 1px solid #fda29b; border-radius: 6px; padding: 8px 12px; margin-top: 8px; }
 .client-list, .reports-list { list-style: none; padding: 0; }
 .client-list li, .reports-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
-.client-list a, .reports-list a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.client-list a, .reports-list a { color: var(--flowbix-red-dark); text-decoration: none; font-weight: 600; }
+.client-list a:hover, .reports-list a:hover { text-decoration: underline; }

@@ -7,8 +7,13 @@
 </head>
 <body>
 <header>
-  <h1>{{ raw.client.name if raw.client else slug }}</h1>
-  <p><a href="{{ url_for('index') }}" class="back">&larr; Todos os clientes</a></p>
+  <div class="header-inner">
+    <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Flowbix" class="logo">
+    <div>
+      <h1>{{ raw.client.name if raw.client else slug }}</h1>
+      <p><a href="{{ url_for('index') }}" class="back">&larr; Todos os clientes</a></p>
+    </div>
+  </div>
 </header>
 <main>
 
@@ -114,7 +119,10 @@
 </section>
 
 <section class="card">
-  <h2>Relatórios gerados</h2>
+  <div class="section-header">
+    <h2>Relatórios gerados</h2>
+    <button id="clear-reports-btn" class="btn-secondary" type="button">🗑 Limpar relatórios</button>
+  </div>
   <ul class="reports-list" id="reports-list">
     {% for r in reports %}
     <li><a href="{{ url_for('serve_report', slug=slug, filename=r) }}" target="_blank">{{ r }}</a></li>
@@ -209,6 +217,20 @@ document.getElementById('run-btn').addEventListener('click', async () => {
     } catch (err) {
       li.textContent = `❌ ${STEP_LABELS[step]} — ${err}`;
     }
+  }
+});
+
+document.getElementById('clear-reports-btn').addEventListener('click', async () => {
+  if (!confirm('Apagar todos os relatórios gerados deste cliente? Isso não pode ser desfeito.')) return;
+  try {
+    const resp = await fetch(`/clients/${slug}/reports/clear`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      document.getElementById('reports-list').innerHTML = '';
+      document.getElementById('reports-empty').style.display = '';
+    }
+  } catch (err) {
+    alert('Erro ao limpar relatórios: ' + err);
   }
 });
 </script>

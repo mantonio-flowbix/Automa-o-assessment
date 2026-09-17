@@ -5,19 +5,21 @@
 <title>Assessment de Zabbix e Infraestrutura — {{ client_name }}</title>
 <style>
   :root {
-    --bg: #f5f6f8;
+    --bg: #f7f5f5;
     --card-bg: #ffffff;
-    --text: #1c2230;
-    --muted: #667085;
-    --border: #e4e7ec;
-    --critical: #b42318;
-    --critical-bg: #fef3f2;
-    --warning: #b54708;
-    --warning-bg: #fffaeb;
-    --info: #175cd3;
-    --info-bg: #eff8ff;
-    --manual: #6941c6;
-    --manual-bg: #f9f5ff;
+    --text: #1a1a1a;
+    --muted: #555555;
+    --border: #eeeeee;
+    --stripe: #f9f9f9;
+    --red: #cc0000;
+    --critical: #cc0000;
+    --critical-bg: #fdecec;
+    --warning: #b8860b;
+    --warning-bg: #fdf6e3;
+    --info: #555555;
+    --info-bg: #f5f5f5;
+    --manual: #2d7a4f;
+    --manual-bg: #f0fff4;
   }
   * { box-sizing: border-box; }
   body {
@@ -28,12 +30,16 @@
     line-height: 1.5;
   }
   header {
-    background: #0f172a;
+    background: var(--text);
     color: white;
-    padding: 32px 24px;
+    padding: 28px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
   }
-  header h1 { margin: 0 0 4px; font-size: 22px; }
-  header p { margin: 0; color: #b6c2d9; font-size: 14px; }
+  header img { height: 40px; border-radius: 4px; }
+  header h1 { margin: 0 0 4px; font-size: 20px; }
+  header p { margin: 0; color: #cfcfcf; font-size: 13px; }
   main { max-width: 960px; margin: 0 auto; padding: 24px; }
   .summary {
     display: flex;
@@ -50,13 +56,18 @@
     padding: 16px;
     text-align: center;
   }
-  .summary .card .num { font-size: 28px; font-weight: 700; }
+  .summary .card .num { font-size: 28px; font-weight: 700; color: var(--red); }
   .summary .card .label { font-size: 13px; color: var(--muted); }
   section.topic { margin-bottom: 32px; }
   section.topic h2 {
-    font-size: 18px;
-    border-bottom: 2px solid var(--border);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--red);
+    border-bottom: 2px solid var(--red);
     padding-bottom: 8px;
+    display: inline-block;
   }
   .finding {
     background: var(--card-bg);
@@ -80,10 +91,10 @@
     text-transform: uppercase;
     letter-spacing: 0.02em;
   }
-  .badge.critical { color: var(--critical); background: var(--critical-bg); }
-  .badge.warning { color: var(--warning); background: var(--warning-bg); }
-  .badge.info { color: var(--info); background: var(--info-bg); }
-  .badge.manual_review { color: var(--manual); background: var(--manual-bg); }
+  .badge.critical { color: white; background: var(--critical); }
+  .badge.warning { color: white; background: var(--warning); }
+  .badge.info { color: white; background: var(--info); }
+  .badge.manual_review { color: white; background: var(--manual); }
   .finding h3 { margin: 0 0 8px; font-size: 15px; }
   .finding p { margin: 4px 0; font-size: 14px; }
   .finding .recommendation { color: var(--muted); }
@@ -91,7 +102,7 @@
   footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; }
   .errors-box {
     background: var(--warning-bg);
-    border: 1px solid #fedf89;
+    border: 1px solid #e8d28a;
     border-radius: 8px;
     padding: 16px;
     margin-bottom: 24px;
@@ -102,8 +113,11 @@
 <body>
 
 <header>
-  <h1>Assessment do Ambiente Zabbix e Infraestrutura</h1>
-  <p>{{ client_name }} · Gerado em {{ generated_at }} · Versão-alvo Zabbix {{ target_zabbix_version }}</p>
+  <img src="{{ logo_data_uri }}" alt="Flowbix">
+  <div>
+    <h1>Assessment do Ambiente Zabbix e Infraestrutura</h1>
+    <p>{{ client_name }} · Gerado em {{ generated_at }} · Versão-alvo Zabbix {{ target_zabbix_version }}</p>
+  </div>
 </header>
 
 <main>

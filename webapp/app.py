@@ -318,6 +318,13 @@ def run_step(slug, step):
         return jsonify({"status": "error", "message": str(exc)})
 
 
+@app.route("/clients/<slug>/reports/clear", methods=["POST"])
+def clear_reports(slug):
+    store = ClientStore(slug)
+    removed = store.clear_reports()
+    return jsonify({"status": "ok", "removed": removed})
+
+
 @app.route("/clients/<slug>/reports/<path:filename>")
 def serve_report(slug, filename):
     store = ClientStore(slug)
