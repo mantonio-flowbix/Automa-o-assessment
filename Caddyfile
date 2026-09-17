@@ -7,10 +7,6 @@
 # internal-only server without a public domain. If this VM already sits
 # behind company VPN/SSO, the `basic_auth` block below can be removed
 # (keep `tls internal` for encryption in transit either way).
-{
-	debug
-}
-
 :443 {
 	# `on_demand`: the site block has no fixed hostname (people reach it by
 	# IP), so Caddy has no static host to pre-issue a cert for. Without this,
