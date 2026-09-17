@@ -29,7 +29,9 @@ def collect(mysql_config: dict) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT VERSION() AS version")
-            result["version"] = cur.fetchone()["version"]
+            version = cur.fetchone()["version"]
+            result["version"] = version
+            is_mariadb = "mariadb" in version.lower()
 
             schema = mysql_config.get("database", "zabbix")
 
@@ -54,24 +56,32 @@ def collect(mysql_config: dict) -> dict:
             )
             result["partitioned_tables"] = [r["table_name"] for r in cur.fetchall()]
 
+            # `SHOW GLOBAL VARIABLES` instead of a catalog table: MariaDB has no
+            # performance_schema.global_variables (that's MySQL-only), and
+            # information_schema.global_variables was removed in MySQL 8 — SHOW
+            # is the one syntax both engines have always supported.
             cur.execute(
-                """
-                SELECT variable_name, variable_value
-                FROM performance_schema.global_variables
-                WHERE variable_name IN ('max_connections', 'event_scheduler', 'innodb_io_capacity')
-                """
+                "SHOW GLOBAL VARIABLES WHERE Variable_name IN (%s, %s, %s)",
+                ("max_connections", "event_scheduler", "innodb_io_capacity"),
             )
-            result["variables"] = {r["variable_name"]: r["variable_value"] for r in cur.fetchall()}
+            result["variables"] = {r["Variable_name"]: r["Value"] for r in cur.fetchall()}
 
             if mysql_config.get("check_history_age", False):
                 oldest = {}
                 timeout_ms = mysql_config.get("history_age_query_timeout_ms", 5000)
+                # Statement-timeout syntax differs between engines: MySQL's
+                # MAX_EXECUTION_TIME is milliseconds and set per-session; MariaDB's
+                # max_statement_time is seconds and set per-statement.
+                if is_mariadb:
+                    timeout_clause = f"SET STATEMENT max_statement_time={timeout_ms / 1000} FOR "
+                else:
+                    cur.execute(f"SET SESSION MAX_EXECUTION_TIME={int(timeout_ms)}")
+                    timeout_clause = ""
                 for table in HISTORY_TABLES:
                     if table not in [t["table_name"] for t in result["tables"]]:
                         continue
                     try:
-                        cur.execute(f"SET SESSION MAX_EXECUTION_TIME={int(timeout_ms)}")
-                        cur.execute(f"SELECT MIN(clock) AS oldest_clock FROM {table}")
+                        cur.execute(f"{timeout_clause}SELECT MIN(clock) AS oldest_clock FROM {table}")
                         row = cur.fetchone()
                         oldest[table] = row["oldest_clock"] if row else None
                     except pymysql.err.OperationalError:
