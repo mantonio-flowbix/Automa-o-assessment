@@ -22,7 +22,10 @@
   {% if clients %}
   <ul class="client-list">
     {% for c in clients %}
-    <li><a href="{{ url_for('client_page', slug=c) }}">{{ c }}</a></li>
+    <li>
+      <a href="{{ url_for('client_page', slug=c.slug) }}">{{ c.name }}</a>
+      <span class="last-run">{{ 'última execução em ' + c.last_report_at if c.last_report_at else 'nunca rodado' }}</span>
+    </li>
     {% endfor %}
   </ul>
   {% else %}

@@ -110,6 +110,14 @@
   </p>
 </section>
 
+{% if growth_chart_svg %}
+<section class="card">
+  <h2>Crescimento do banco de dados</h2>
+  <p class="hint">Tamanho total do banco em cada execução do MySQL — passe o mouse num ponto para ver a data e o valor.</p>
+  <div class="chart">{{ growth_chart_svg | safe }}</div>
+</section>
+{% endif %}
+
 <section class="card">
   <h2>Rodar validação</h2>
   <p class="hint">Roda Zabbix → MySQL → Infraestrutura (o que estiver configurado/disponível) e gera o relatório consolidado. Uma fonte que falhar não impede as outras.</p>
@@ -139,13 +147,20 @@ const slug = {{ slug | tojson }};
 document.getElementById('config-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const status = document.getElementById('config-status');
-  status.textContent = 'Salvando...';
+  const button = e.target.querySelector('button[type="submit"]');
+  button.disabled = true;
+  const originalLabel = button.textContent;
+  button.textContent = 'Salvando...';
+  status.textContent = '';
   try {
     const resp = await fetch(`/clients/${slug}/config`, { method: 'POST', body: new FormData(e.target) });
     const data = await resp.json();
     status.textContent = data.status === 'ok' ? 'Salvo.' : 'Erro ao salvar.';
   } catch (err) {
     status.textContent = 'Erro ao salvar: ' + err;
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
   }
 });
 
@@ -159,7 +174,11 @@ const STEP_LABELS = {
 document.getElementById('upload-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const status = document.getElementById('upload-status');
-  status.textContent = 'Enviando...';
+  const button = e.target.querySelector('button[type="submit"]');
+  button.disabled = true;
+  const originalLabel = button.textContent;
+  button.textContent = 'Enviando...';
+  status.textContent = '';
   try {
     const resp = await fetch(`/clients/${slug}/infra/upload`, { method: 'POST', body: new FormData(e.target) });
     const data = await resp.json();
@@ -172,29 +191,49 @@ document.getElementById('upload-form').addEventListener('submit', async (e) => {
     }
   } catch (err) {
     status.textContent = 'Erro ao enviar: ' + err;
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
   }
 });
 
+const STATUS_BADGE = {
+  pending: { label: 'Rodando', cls: 'status-pending' },
+  ok: { label: 'OK', cls: 'status-ok' },
+  skipped: { label: 'Pulado', cls: 'status-skipped' },
+  error: { label: 'Erro', cls: 'status-error' },
+};
+
+function renderStep(li, step, status, detail) {
+  const badge = STATUS_BADGE[status];
+  li.innerHTML = `<span class="badge ${badge.cls}">${badge.label}</span> <strong>${STEP_LABELS[step]}</strong>` +
+    (detail ? ` — ${detail}` : '');
+}
+
 document.getElementById('run-btn').addEventListener('click', async () => {
+  const runBtn = document.getElementById('run-btn');
   const stepsEl = document.getElementById('steps');
   const resultEl = document.getElementById('result');
   stepsEl.innerHTML = '';
   resultEl.innerHTML = '';
+  runBtn.disabled = true;
+  const originalLabel = runBtn.textContent;
+  runBtn.textContent = 'Rodando...';
 
   for (const step of ['zabbix', 'mysql', 'infra', 'report']) {
     const li = document.createElement('li');
-    li.textContent = `⏳ ${STEP_LABELS[step]}...`;
+    renderStep(li, step, 'pending', '');
     stepsEl.appendChild(li);
 
     try {
       const resp = await fetch(`/clients/${slug}/run/${step}`, { method: 'POST' });
       const data = await resp.json();
       if (data.status === 'ok') {
-        li.textContent = `✅ ${STEP_LABELS[step]} — ${JSON.stringify(data.summary)}`;
+        renderStep(li, step, 'ok', JSON.stringify(data.summary));
       } else if (data.status === 'skipped') {
-        li.textContent = `⏭️ ${STEP_LABELS[step]} — ${data.message}`;
+        renderStep(li, step, 'skipped', data.message);
       } else {
-        li.textContent = `❌ ${STEP_LABELS[step]} — ${data.message}`;
+        renderStep(li, step, 'error', data.message);
       }
       if (step === 'report' && data.report_url) {
         resultEl.innerHTML =
@@ -215,9 +254,12 @@ document.getElementById('run-btn').addEventListener('click', async () => {
         }
       }
     } catch (err) {
-      li.textContent = `❌ ${STEP_LABELS[step]} — ${err}`;
+      renderStep(li, step, 'error', String(err));
     }
   }
+
+  runBtn.disabled = false;
+  runBtn.textContent = originalLabel;
 });
 
 document.getElementById('clear-reports-btn').addEventListener('click', async () => {

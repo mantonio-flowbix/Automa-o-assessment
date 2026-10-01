@@ -123,6 +123,15 @@ class ClientStore:
             path.unlink()
         return len(files)
 
+    def last_report_at(self):
+        """Modification time of the most recently generated report, or
+        None if nothing has been generated yet — used by the client list
+        to show "last run" without needing to parse the filename."""
+        reports = self.list_reports()
+        if not reports:
+            return None
+        return max(p.stat().st_mtime for p in reports)
+
     @classmethod
     def list_all(cls) -> list:
         if not CLIENTS_DIR.exists():

@@ -39,6 +39,7 @@ from flowbix_assess.models import CollectionResult
 from flowbix_assess.pptx_report import render as render_pptx
 from flowbix_assess.report import render as render_report
 from flowbix_assess.rules import run_all
+from webapp.charts import render_growth_chart
 
 app = Flask(__name__)
 
@@ -140,7 +141,19 @@ def _token_expired(source_cfg: dict | None) -> str | None:
 
 @app.route("/")
 def index():
-    clients = ClientStore.list_all()
+    clients = []
+    for slug in ClientStore.list_all():
+        store = ClientStore(slug)
+        raw = store.load_config_raw()
+        last_report_at = store.last_report_at()
+        clients.append({
+            "slug": slug,
+            "name": (raw.get("client") or {}).get("name") or slug,
+            "last_report_at": (
+                datetime.datetime.fromtimestamp(last_report_at).strftime("%d/%m/%Y %H:%M")
+                if last_report_at else None
+            ),
+        })
     return render_template("index.html", clients=clients)
 
 
@@ -179,6 +192,7 @@ def client_page(slug):
         has_grafana_token=bool(env.get("GRAFANA_TOKEN")),
         zabbix_token_expired=_token_expired(raw.get("zabbix")),
         grafana_token_expired=_token_expired(raw.get("grafana")),
+        growth_chart_svg=render_growth_chart(store.load_size_history()),
     )
 
 

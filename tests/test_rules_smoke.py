@@ -3,8 +3,9 @@ from pathlib import Path
 
 from flowbix_assess.collectors import infra_local
 from flowbix_assess.config import Config
-from flowbix_assess.models import CollectionResult
+from flowbix_assess.models import CollectionResult, Severity
 from flowbix_assess.rules import run_all
+from flowbix_assess.rules import zabbix_rules
 
 SAMPLE_DIR = Path(__file__).resolve().parent.parent / "sample_data"
 
@@ -113,3 +114,68 @@ def test_grafana_sqlite_backend_flagged():
 
     titles = [f.title for f in findings]
     assert any("SQLite" in t for t in titles)
+
+
+def test_per_template_findings_are_aggregated_into_one():
+    """Real environments can have hundreds of templates tripping the same
+    rule — this guards against regressing to one finding per template
+    (which is what turned a single assessment into ~750 PPTX slides)."""
+    config = _demo_config()
+    zbx = {
+        "templates": [
+            {
+                "name": "Template A", "items": [
+                    {"itemid": "1", "name": "item-a1", "delay": "10s", "triggers": []},
+                    {"itemid": "2", "name": "item-a2", "delay": "10s", "triggers": []},
+                ],
+                "discovery_rules": [], "triggers": [],
+            },
+            {
+                "name": "Template B", "items": [
+                    {"itemid": "3", "name": "item-b1", "delay": "5s", "triggers": []},
+                ],
+                "discovery_rules": [], "triggers": [],
+            },
+            {
+                "name": "Template C", "items": [
+                    {"itemid": "4", "name": "item-c1", "delay": "60s", "triggers": []},
+                ],
+                "discovery_rules": [], "triggers": [],
+            },
+        ]
+    }
+
+    findings = zabbix_rules.evaluate(config, zbx)
+    short_interval = [f for f in findings if "intervalo de coleta curto" in f.title]
+
+    assert len(short_interval) == 1, "expected exactly one aggregated finding, not one per template"
+    finding = short_interval[0]
+    assert "2 template(s)" in finding.title
+    assert "Template A" in finding.description and "Template B" in finding.description
+    assert "Template C" not in finding.description
+    assert len(finding.evidence["templates"]) == 2
+
+
+def test_odbc_severity_escalates_when_any_template_has_errors():
+    config = _demo_config()
+    zbx = {
+        "templates": [
+            {
+                "name": "Template ODBC OK",
+                "items": [{"itemid": "1", "name": "q1", "key_": "db.odbc.select[x]", "type": "11", "error": ""}],
+                "discovery_rules": [], "triggers": [],
+            },
+            {
+                "name": "Template ODBC com erro",
+                "items": [{"itemid": "2", "name": "q2", "key_": "db.odbc.select[y]", "type": "11", "error": "too many connections"}],
+                "discovery_rules": [], "triggers": [],
+            },
+        ]
+    }
+
+    findings = zabbix_rules.evaluate(config, zbx)
+    odbc = [f for f in findings if "conexão direta ao banco via ODBC" in f.title]
+
+    assert len(odbc) == 1
+    assert odbc[0].severity == Severity.WARNING
+    assert "2 template(s)" in odbc[0].title

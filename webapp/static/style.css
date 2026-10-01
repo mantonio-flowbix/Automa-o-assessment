@@ -70,6 +70,7 @@ button {
   transition: opacity 0.15s;
 }
 button:hover { opacity: 0.88; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-secondary {
   background: transparent;
   color: var(--flowbix-red-dark);
@@ -94,3 +95,23 @@ button:hover { opacity: 0.88; }
 .client-list li, .reports-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
 .client-list a, .reports-list a { color: var(--flowbix-red-dark); text-decoration: none; font-weight: 600; }
 .client-list a:hover, .reports-list a:hover { text-decoration: underline; }
+.client-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.client-list .last-run { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: white;
+}
+.status-pending { background: var(--muted); }
+.status-ok { background: #2d7a4f; }
+.status-skipped { background: #b8860b; }
+.status-error { background: var(--flowbix-red-dark); }
+
+.chart { margin-top: 8px; }
+.chart svg { display: block; max-width: 100%; }

@@ -31,6 +31,8 @@ _PROCESS_PARAM_HINT = {
 
 _PSK_TLS_VALUE = 2  # Zabbix tls_connect/tls_accept: 1=unencrypted, 2=PSK, 4=cert
 
+_MAX_TEMPLATE_EXAMPLES = 8
+
 
 def _delay_to_seconds(delay: str) -> int | None:
     if not delay:
@@ -43,6 +45,20 @@ def _delay_to_seconds(delay: str) -> int | None:
         return None
     value, unit = match.groups()
     return int(value) * _DELAY_UNIT_SECONDS[unit]
+
+
+def _aggregate_template_matches(matches: list[tuple[str, list]], max_examples=_MAX_TEMPLATE_EXAMPLES):
+    """`matches`: list of (template_name, items) for every template that hit
+    a per-template rule. A real environment can have hundreds of templates
+    tripping the same rule — rather than one finding per template (the
+    pre-aggregation behavior, which turned a single assessment run into
+    hundreds of near-identical slides/cards), this rolls them into one
+    finding with a total item count and a truncated list of examples.
+    Returns (total_items, descriptor_text)."""
+    total_items = sum(len(items) for _, items in matches)
+    examples = ", ".join(f"{tpl} ({len(items)})" for tpl, items in matches[:max_examples])
+    more = f", e mais {len(matches) - max_examples} template(s)" if len(matches) > max_examples else ""
+    return total_items, f"{examples}{more}"
 
 
 def _cpu_findings(config, zbx: dict) -> list[Finding]:
@@ -96,7 +112,7 @@ def _unsupported_items_finding(config, zbx: dict) -> list[Finding]:
 
 
 def _master_item_history_findings(config, zbx: dict) -> list[Finding]:
-    findings = []
+    matches = []
     for tpl in zbx.get("templates", []):
         items = tpl.get("items", [])
         master_ids = {i["master_itemid"] for i in items if i.get("master_itemid") not in (None, "0")}
@@ -113,27 +129,31 @@ def _master_item_history_findings(config, zbx: dict) -> list[Finding]:
             if dependents_with_history:
                 offending.append(item["name"])
         if offending:
-            findings.append(Finding(
-                section="Análise de Templates",
-                title=f"Itens master salvando histórico duplicado em '{tpl['name']}'",
-                severity=Severity.WARNING,
-                description=(
-                    f"{len(offending)} item(ns) master mantêm histórico habilitado apesar de "
-                    f"seus itens dependentes também armazenarem: {', '.join(offending[:10])}"
-                    + (", ..." if len(offending) > 10 else "")
-                ),
-                recommendation="Desabilitar histórico nos itens master; manter apenas nos dependentes.",
-                evidence={"template": tpl["name"], "items": offending},
-                estimated_effort_hours=1.5,
-            ))
-    return findings
+            matches.append((tpl["name"], offending))
+
+    if not matches:
+        return []
+
+    total_items, descriptor = _aggregate_template_matches(matches)
+    return [Finding(
+        section="Análise de Templates",
+        title=f"Itens master salvando histórico duplicado em {len(matches)} template(s)",
+        severity=Severity.WARNING,
+        description=(
+            f"{total_items} item(ns) master mantêm histórico habilitado apesar de seus "
+            f"itens dependentes também armazenarem. Templates afetados: {descriptor}"
+        ),
+        recommendation="Desabilitar histórico nos itens master; manter apenas nos dependentes.",
+        evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
+        estimated_effort_hours=1.5 * len(matches),
+    )]
 
 
 def _short_interval_findings(config, zbx: dict) -> list[Finding]:
     """General check: any item collecting faster than the threshold,
     regardless of whether it has a trigger. See also
     `_short_interval_no_trigger_findings` for the lower-priority subset."""
-    findings = []
+    matches = []
     threshold = config.thresholds["short_interval_seconds"]
     for tpl in zbx.get("templates", []):
         offending = []
@@ -143,28 +163,33 @@ def _short_interval_findings(config, zbx: dict) -> list[Finding]:
                 continue
             offending.append(item["name"])
         if offending:
-            findings.append(Finding(
-                section="Análise de Templates",
-                title=f"Itens com intervalo de coleta curto em '{tpl['name']}'",
-                severity=Severity.INFO,
-                description=(
-                    f"{len(offending)} item(ns) com coleta abaixo de {threshold}s: "
-                    f"{', '.join(offending[:10])}" + (", ..." if len(offending) > 10 else "")
-                ),
-                recommendation=(
-                    "Usar intervalos mais longos quando não houver necessidade específica de "
-                    "monitoramento em tempo real — diminui a carga no banco e no servidor."
-                ),
-                evidence={"template": tpl["name"], "items": offending},
-            ))
-    return findings
+            matches.append((tpl["name"], offending))
+
+    if not matches:
+        return []
+
+    total_items, descriptor = _aggregate_template_matches(matches)
+    return [Finding(
+        section="Análise de Templates",
+        title=f"Itens com intervalo de coleta curto em {len(matches)} template(s)",
+        severity=Severity.INFO,
+        description=(
+            f"{total_items} item(ns) com coleta abaixo de {threshold}s. "
+            f"Templates afetados: {descriptor}"
+        ),
+        recommendation=(
+            "Usar intervalos mais longos quando não houver necessidade específica de "
+            "monitoramento em tempo real — diminui a carga no banco e no servidor."
+        ),
+        evidence={"templates": [{"template": t, "items": items} for t, items in matches], "threshold_seconds": threshold},
+    )]
 
 
 def _short_interval_no_trigger_findings(config, zbx: dict) -> list[Finding]:
     """Lower-priority subset of the above: short interval AND no trigger
     depends on that timing, so it's the safest place to relax the interval
     first."""
-    findings = []
+    matches = []
     threshold = config.thresholds["short_interval_seconds"]
     for tpl in zbx.get("templates", []):
         offending = []
@@ -176,58 +201,68 @@ def _short_interval_no_trigger_findings(config, zbx: dict) -> list[Finding]:
                 continue
             offending.append(item["name"])
         if offending:
-            findings.append(Finding(
-                section="Análise de Templates",
-                title=f"Itens de baixa prioridade com intervalo curto e sem trigger em '{tpl['name']}'",
-                severity=Severity.INFO,
-                description=(
-                    f"{len(offending)} item(ns) com coleta abaixo de {threshold}s e sem "
-                    f"nenhuma trigger associada — indica menor criticidade: "
-                    f"{', '.join(offending[:10])}" + (", ..." if len(offending) > 10 else "")
-                ),
-                recommendation="Aumentar o intervalo de coleta desses itens, salvo necessidade específica.",
-                evidence={"template": tpl["name"], "items": offending},
-            ))
-    return findings
+            matches.append((tpl["name"], offending))
+
+    if not matches:
+        return []
+
+    total_items, descriptor = _aggregate_template_matches(matches)
+    return [Finding(
+        section="Análise de Templates",
+        title=f"Itens de baixa prioridade com intervalo curto e sem trigger em {len(matches)} template(s)",
+        severity=Severity.INFO,
+        description=(
+            f"{total_items} item(ns) com coleta abaixo de {threshold}s e sem nenhuma "
+            f"trigger associada — indica menor criticidade. Templates afetados: {descriptor}"
+        ),
+        recommendation="Aumentar o intervalo de coleta desses itens, salvo necessidade específica.",
+        evidence={"templates": [{"template": t, "items": items} for t, items in matches], "threshold_seconds": threshold},
+    )]
 
 
 def _odbc_item_findings(config, zbx: dict) -> list[Finding]:
-    findings = []
+    matches = []
     for tpl in zbx.get("templates", []):
         offending = []
         for item in tpl.get("items", []):
             is_odbc = item.get("type") == _ODBC_ITEM_TYPE or item.get("key_", "").startswith("db.odbc")
             if is_odbc:
                 offending.append((item["name"], item.get("error") or ""))
-        if not offending:
-            continue
-        with_errors = [name for name, err in offending if err]
-        severity = Severity.WARNING if with_errors else Severity.INFO
-        description = (
-            f"{len(offending)} item(ns) fazem conexão direta ao banco via ODBC: "
-            f"{', '.join(name for name, _ in offending[:10])}."
+        if offending:
+            matches.append((tpl["name"], offending))
+
+    if not matches:
+        return []
+
+    total_items = sum(len(items) for _, items in matches)
+    with_errors_total = sum(1 for _, items in matches for _, err in items if err)
+    severity = Severity.WARNING if with_errors_total else Severity.INFO
+    examples = ", ".join(f"{tpl} ({len(items)})" for tpl, items in matches[:_MAX_TEMPLATE_EXAMPLES])
+    more = f", e mais {len(matches) - _MAX_TEMPLATE_EXAMPLES} template(s)" if len(matches) > _MAX_TEMPLATE_EXAMPLES else ""
+    description = (
+        f"{total_items} item(ns) em {len(matches)} template(s) fazem conexão direta ao "
+        f"banco via ODBC: {examples}{more}."
+    )
+    if with_errors_total:
+        description += (
+            f" {with_errors_total} com erro de conexão reportado "
+            f"(ex.: limite de conexões do banco excedido)."
         )
-        if with_errors:
-            description += (
-                f" {len(with_errors)} com erro de conexão reportado "
-                f"(ex.: limite de conexões do banco excedido)."
-            )
-        findings.append(Finding(
-            section="Análise de Templates",
-            title=f"Itens com conexão direta ao banco via ODBC em '{tpl['name']}'",
-            severity=severity,
-            description=description,
-            recommendation=(
-                "Usar abordagem de item master com itens dependentes para reduzir a "
-                "quantidade de conexões diretas ao banco."
-            ),
-            evidence={"template": tpl["name"], "items": offending},
-        ))
-    return findings
+    return [Finding(
+        section="Análise de Templates",
+        title=f"Itens com conexão direta ao banco via ODBC em {len(matches)} template(s)",
+        severity=severity,
+        description=description,
+        recommendation=(
+            "Usar abordagem de item master com itens dependentes para reduzir a "
+            "quantidade de conexões diretas ao banco."
+        ),
+        evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
+    )]
 
 
 def _trigger_logic_findings(config, zbx: dict) -> list[Finding]:
-    findings = []
+    matches = []
     for tpl in zbx.get("templates", []):
         offending = [
             trig.get("description") or trig.get("triggerid")
@@ -235,21 +270,26 @@ def _trigger_logic_findings(config, zbx: dict) -> list[Finding]:
             if _SUM_PATTERN.search(trig.get("expression", ""))
         ]
         if offending:
-            findings.append(Finding(
-                section="Análise de Templates",
-                title=f"Triggers somando valores de itens em '{tpl['name']}'",
-                severity=Severity.INFO,
-                description=(
-                    f"{len(offending)} trigger(s) parecem somar valores de múltiplas funções "
-                    f"de item (ex.: last(a)+last(b)): {', '.join(str(t) for t in offending[:10])}."
-                ),
-                recommendation=(
-                    "Avaliar substituir a soma por min()/max() sobre um intervalo de tempo, "
-                    "quando aplicável — simplifica manutenção e o entendimento da lógica."
-                ),
-                evidence={"template": tpl["name"], "triggers": offending},
-            ))
-    return findings
+            matches.append((tpl["name"], offending))
+
+    if not matches:
+        return []
+
+    total_items, descriptor = _aggregate_template_matches(matches)
+    return [Finding(
+        section="Análise de Templates",
+        title=f"Triggers somando valores de itens em {len(matches)} template(s)",
+        severity=Severity.INFO,
+        description=(
+            f"{total_items} trigger(s) parecem somar valores de múltiplas funções de item "
+            f"(ex.: last(a)+last(b)). Templates afetados: {descriptor}"
+        ),
+        recommendation=(
+            "Avaliar substituir a soma por min()/max() sobre um intervalo de tempo, "
+            "quando aplicável — simplifica manutenção e o entendimento da lógica."
+        ),
+        evidence={"templates": [{"template": t, "triggers": items} for t, items in matches]},
+    )]
 
 
 def _unsupported_items_causes_findings(config, zbx: dict) -> list[Finding]:
@@ -360,7 +400,7 @@ def _access_policy_manual_review(config, zbx: dict) -> list[Finding]:
 
 
 def _excessive_preprocessing_findings(config, zbx: dict) -> list[Finding]:
-    findings = []
+    matches = []
     threshold = config.thresholds["max_preprocessing_steps"]
     for tpl in zbx.get("templates", []):
         offending = [
@@ -369,56 +409,70 @@ def _excessive_preprocessing_findings(config, zbx: dict) -> list[Finding]:
             if len(item.get("preprocessing", [])) > threshold
         ]
         if offending:
-            details = ", ".join(f"{name} ({count} passos)" for name, count in offending[:10])
-            findings.append(Finding(
-                section="Análise de Templates",
-                title=f"Pré-processamento excessivo em '{tpl['name']}'",
-                severity=Severity.WARNING,
-                description=f"{len(offending)} item(ns) acima de {threshold} passos: {details}",
-                recommendation=(
-                    "Consolidar passos de pré-processamento (ex.: usar um único script "
-                    "JavaScript no lugar de múltiplos passos encadeados)."
-                ),
-                evidence={"template": tpl["name"], "items": offending},
-                estimated_effort_hours=len(offending) * 2.0,
-            ))
-    return findings
+            matches.append((tpl["name"], offending))
+
+    if not matches:
+        return []
+
+    total_items = sum(len(items) for _, items in matches)
+    examples = ", ".join(f"{tpl} ({len(items)})" for tpl, items in matches[:_MAX_TEMPLATE_EXAMPLES])
+    more = f", e mais {len(matches) - _MAX_TEMPLATE_EXAMPLES} template(s)" if len(matches) > _MAX_TEMPLATE_EXAMPLES else ""
+    return [Finding(
+        section="Análise de Templates",
+        title=f"Pré-processamento excessivo em {len(matches)} template(s)",
+        severity=Severity.WARNING,
+        description=(
+            f"{total_items} item(ns) acima de {threshold} passos, em {len(matches)} "
+            f"template(s): {examples}{more}"
+        ),
+        recommendation=(
+            "Consolidar passos de pré-processamento (ex.: usar um único script "
+            "JavaScript no lugar de múltiplos passos encadeados)."
+        ),
+        evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
+        estimated_effort_hours=total_items * 2.0,
+    )]
 
 
 def _excessive_discovery_findings(config, zbx: dict) -> list[Finding]:
-    findings = []
     threshold = config.thresholds["max_discovery_rules_per_template"]
+    matches = []
     for tpl in zbx.get("templates", []):
         rules = tpl.get("discovery_rules", [])
         if len(rules) > threshold:
-            findings.append(Finding(
-                section="Análise de Templates",
-                title=f"Quantidade elevada de discoveries em '{tpl['name']}'",
-                severity=Severity.INFO,
-                description=f"{len(rules)} discovery rules (limite sugerido: {threshold}).",
-                recommendation="Avaliar uso de overrides para reduzir a quantidade de discoveries.",
-                evidence={"template": tpl["name"], "count": len(rules)},
-            ))
-    return findings
+            matches.append((tpl["name"], len(rules)))
+
+    if not matches:
+        return []
+
+    examples = ", ".join(f"{tpl} ({count})" for tpl, count in matches[:_MAX_TEMPLATE_EXAMPLES])
+    more = f", e mais {len(matches) - _MAX_TEMPLATE_EXAMPLES} template(s)" if len(matches) > _MAX_TEMPLATE_EXAMPLES else ""
+    return [Finding(
+        section="Análise de Templates",
+        title=f"Quantidade elevada de discoveries em {len(matches)} template(s)",
+        severity=Severity.INFO,
+        description=f"{len(matches)} template(s) acima de {threshold} discovery rules: {examples}{more}",
+        recommendation="Avaliar uso de overrides para reduzir a quantidade de discoveries.",
+        evidence={"templates": [{"template": t, "count": c} for t, c in matches]},
+    )]
 
 
 def _media_type_findings(config, zbx: dict) -> list[Finding]:
-    findings = []
     flagged_names = [n.lower() for n in config.thresholds.get("media_types_deprecated_js", ["servicenow"])]
-    for mt in zbx.get("media_types", []):
-        if mt.get("name", "").lower() in flagged_names:
-            findings.append(Finding(
-                section="Análise de Mídias",
-                title=f"Media type '{mt['name']}' pode usar objetos JS deprecados",
-                severity=Severity.WARNING,
-                description=(
-                    "Media types baseados em script/webhook que usam objetos JavaScript "
-                    "descontinuados a partir da versão 7.0 do Zabbix."
-                ),
-                recommendation=f"Revisar e ajustar o script antes de atualizar para {config.target_zabbix_version}.",
-                evidence={"media_type": mt["name"]},
-            ))
-    return findings
+    matched = [mt["name"] for mt in zbx.get("media_types", []) if mt.get("name", "").lower() in flagged_names]
+    if not matched:
+        return []
+    return [Finding(
+        section="Análise de Mídias",
+        title=f"{len(matched)} media type(s) podem usar objetos JS deprecados",
+        severity=Severity.WARNING,
+        description=(
+            "Media types baseados em script/webhook que usam objetos JavaScript "
+            f"descontinuados a partir da versão 7.0 do Zabbix: {', '.join(matched)}."
+        ),
+        recommendation=f"Revisar e ajustar os scripts antes de atualizar para {config.target_zabbix_version}.",
+        evidence={"media_types": matched},
+    )]
 
 
 def _dashboard_naming_findings(config, zbx: dict) -> list[Finding]:
