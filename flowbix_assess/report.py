@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -28,10 +28,12 @@ SEVERITY_LABELS = {
 
 
 def render(config, findings, output_path: str, errors: dict | None = None):
+    now = datetime.now()
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATE_DIR)),
         autoescape=select_autoescape(["html"]),
     )
+    env.filters["deadline_date"] = lambda days: (now + timedelta(days=days)).strftime("%d/%m/%Y") if days else None
     template = env.get_template("report_template.html")
 
     by_section = defaultdict(list)
@@ -45,7 +47,7 @@ def render(config, findings, output_path: str, errors: dict | None = None):
     html = template.render(
         client_name=config.client_name,
         target_zabbix_version=config.target_zabbix_version,
-        generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        generated_at=now.strftime("%d/%m/%Y %H:%M"),
         by_section=dict(by_section),
         counts=counts,
         severity_labels=SEVERITY_LABELS,

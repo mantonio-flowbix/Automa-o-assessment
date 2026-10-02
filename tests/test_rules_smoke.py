@@ -156,6 +156,30 @@ def test_per_template_findings_are_aggregated_into_one():
     assert len(finding.evidence["templates"]) == 2
 
 
+def test_deadline_is_set_per_topic_not_a_flat_severity_bucket():
+    """deadline_days is judged per finding topic, not a uniform per-severity
+    mapping — a saturated disk (critical) and a stale dashboard name
+    (manual review) shouldn't get the same urgency treatment. This pins a
+    few representative cases rather than asserting a single formula."""
+    config = _demo_config()
+    collection = _load_demo_collection()
+    findings = run_all(config, collection)
+    by_title = {f.title: f for f in findings}
+
+    # Purely informational finding: no deadline at all.
+    topology = next(f for f in findings if "Topologia do ambiente" in f.title)
+    assert topology.deadline_days is None
+
+    # Disk/CPU-class infra findings get a short, operational deadline.
+    cpu_host = next(f for f in findings if "Carga de CPU elevada" in f.title)
+    assert cpu_host.deadline_days in (7, 30)
+
+    # Every finding with a deadline has a plausible positive day count.
+    for f in findings:
+        if f.deadline_days is not None:
+            assert 0 < f.deadline_days <= 120
+
+
 def test_odbc_severity_escalates_when_any_template_has_errors():
     config = _demo_config()
     zbx = {

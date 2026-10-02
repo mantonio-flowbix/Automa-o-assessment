@@ -85,6 +85,7 @@ def _cpu_findings(config, zbx: dict) -> list[Finding]:
                 "scripts) e avaliar upgrade de instância se a otimização não for suficiente."
             ),
             evidence=stats,
+            deadline_days=15 if severity == Severity.CRITICAL else 30,
         ))
     return findings
 
@@ -108,6 +109,7 @@ def _unsupported_items_finding(config, zbx: dict) -> list[Finding]:
             "system.run, revisar configuração do agente no host de origem."
         ),
         evidence={"count": count},
+        deadline_days=30 if severity == Severity.WARNING else 60,
     )]
 
 
@@ -146,6 +148,7 @@ def _master_item_history_findings(config, zbx: dict) -> list[Finding]:
         recommendation="Desabilitar histórico nos itens master; manter apenas nos dependentes.",
         evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
         estimated_effort_hours=1.5 * len(matches),
+        deadline_days=30,
     )]
 
 
@@ -182,6 +185,7 @@ def _short_interval_findings(config, zbx: dict) -> list[Finding]:
             "monitoramento em tempo real — diminui a carga no banco e no servidor."
         ),
         evidence={"templates": [{"template": t, "items": items} for t, items in matches], "threshold_seconds": threshold},
+        deadline_days=90,
     )]
 
 
@@ -217,6 +221,7 @@ def _short_interval_no_trigger_findings(config, zbx: dict) -> list[Finding]:
         ),
         recommendation="Aumentar o intervalo de coleta desses itens, salvo necessidade específica.",
         evidence={"templates": [{"template": t, "items": items} for t, items in matches], "threshold_seconds": threshold},
+        deadline_days=90,
     )]
 
 
@@ -258,6 +263,7 @@ def _odbc_item_findings(config, zbx: dict) -> list[Finding]:
             "quantidade de conexões diretas ao banco."
         ),
         evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
+        deadline_days=30 if with_errors_total else 90,
     )]
 
 
@@ -289,6 +295,7 @@ def _trigger_logic_findings(config, zbx: dict) -> list[Finding]:
             "quando aplicável — simplifica manutenção e o entendimento da lógica."
         ),
         evidence={"templates": [{"template": t, "triggers": items} for t, items in matches]},
+        deadline_days=90,
     )]
 
 
@@ -320,6 +327,7 @@ def _unsupported_items_causes_findings(config, zbx: dict) -> list[Finding]:
         description=f"Com base em uma amostra de {len(sample)} itens: {breakdown}.",
         recommendation="Priorizar a causa mais frequente primeiro (normalmente timeout ou valor vazio).",
         evidence={"sample_size": len(sample), "causes": dict(causes)},
+        deadline_days=60,
     )]
 
 
@@ -342,6 +350,7 @@ def _process_busy_findings(config, zbx: dict) -> list[Finding]:
             description=f"Processos acima de {warn}% de utilização: {details}.",
             recommendation=f"Aumentar o(s) parâmetro(s) {params} no zabbix_server.conf/zabbix_proxy.conf.",
             evidence={"host": host, "processes": procs},
+            deadline_days=15 if severity == Severity.CRITICAL else 30,
         ))
     return findings
 
@@ -381,6 +390,7 @@ def _proxy_psk_findings(config, zbx: dict) -> list[Finding]:
         description=f"Proxies com tls_connect diferente de PSK: {', '.join(offending)}.",
         recommendation="Configurar criptografia PSK na comunicação proxy → servidor.",
         evidence={"proxies": offending},
+        deadline_days=30,
     )]
 
 
@@ -396,6 +406,7 @@ def _access_policy_manual_review(config, zbx: dict) -> list[Finding]:
         ),
         recommendation="Confirmar manualmente com o time de segurança/infraestrutura do cliente.",
         evidence={},
+        deadline_days=30,
     )]
 
 
@@ -431,6 +442,7 @@ def _excessive_preprocessing_findings(config, zbx: dict) -> list[Finding]:
         ),
         evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
         estimated_effort_hours=total_items * 2.0,
+        deadline_days=45,
     )]
 
 
@@ -454,6 +466,7 @@ def _excessive_discovery_findings(config, zbx: dict) -> list[Finding]:
         description=f"{len(matches)} template(s) acima de {threshold} discovery rules: {examples}{more}",
         recommendation="Avaliar uso de overrides para reduzir a quantidade de discoveries.",
         evidence={"templates": [{"template": t, "count": c} for t, c in matches]},
+        deadline_days=90,
     )]
 
 
@@ -472,6 +485,7 @@ def _media_type_findings(config, zbx: dict) -> list[Finding]:
         ),
         recommendation=f"Revisar e ajustar os scripts antes de atualizar para {config.target_zabbix_version}.",
         evidence={"media_types": matched},
+        deadline_days=45,
     )]
 
 
@@ -486,6 +500,7 @@ def _dashboard_naming_findings(config, zbx: dict) -> list[Finding]:
             description=f"Dashboards candidatos a remoção: {', '.join(suspects)}",
             recommendation="Confirmar se ainda estão em uso; remover se não estiverem.",
             evidence={"dashboards": suspects},
+            deadline_days=30,
         ))
     return findings
 
@@ -507,6 +522,7 @@ def _housekeeper_findings(config, zbx: dict) -> list[Finding]:
             ),
             recommendation="Revisar overrides de retenção por item ou habilitar retenção global consistente.",
             evidence=hk,
+            deadline_days=30,
         ))
     return findings
 

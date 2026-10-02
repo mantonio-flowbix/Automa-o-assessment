@@ -153,6 +153,9 @@
     {% if f.estimated_effort_hours %}
     <p class="recommendation"><strong>Esforço estimado:</strong> {{ f.estimated_effort_hours }}h</p>
     {% endif %}
+    {% if f.deadline_days %}
+    <p class="recommendation"><strong>Prazo sugerido:</strong> {{ f.deadline_days }} dias (até {{ f.deadline_days | deadline_date }})</p>
+    {% endif %}
   </div>
   {% endfor %}
 </section>

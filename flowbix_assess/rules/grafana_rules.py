@@ -24,6 +24,7 @@ def _version_finding(config, grafana: dict) -> list[Finding]:
         description=f"Versão em uso ({current}) está atrás da versão mais recente conhecida ({latest_known}).",
         recommendation="Planejar atualização para aproveitar correções de segurança e performance.",
         evidence={"current": current, "latest_known": latest_known},
+        deadline_days=60,
     )]
 
 
@@ -40,6 +41,7 @@ def _backend_db_finding(config, grafana: dict) -> list[Finding]:
             ),
             recommendation="Preencher 'grafana.backend_db_type' no config manualmente, ou usar coletor SSH (roadmap v2).",
             evidence={},
+            deadline_days=15,
         )]
     if backend.lower() in ("sqlite3", "sqlite"):
         return [Finding(
@@ -49,6 +51,7 @@ def _backend_db_finding(config, grafana: dict) -> list[Finding]:
             description="SQLite não é recomendado para ambientes com múltiplos usuários simultâneos.",
             recommendation="Migrar para MariaDB ou MySQL.",
             evidence={"backend_db_type": backend},
+            deadline_days=60,
         )]
     return []
 
@@ -64,6 +67,7 @@ def _dashboard_naming_findings(config, grafana: dict) -> list[Finding]:
         description=f"Candidatos a revisão/remoção: {', '.join(suspects)}",
         recommendation="Confirmar uso real e remover dashboards obsoletos para reduzir ruído.",
         evidence={"dashboards": suspects},
+        deadline_days=30,
     )]
 
 
@@ -82,6 +86,7 @@ def _deep_dashboard_review_note(config, grafana: dict) -> list[Finding]:
         ),
         recommendation="Roadmap v2: buscar /api/dashboards/uid/{uid} e inspecionar o JSON model.",
         evidence={"dashboard_count": count},
+        deadline_days=90,
     )]
 
 

@@ -28,6 +28,11 @@ class Finding:
     recommendation: str
     evidence: dict = field(default_factory=dict)
     estimated_effort_hours: float | None = None
+    # Suggested days (from report generation date) to resolve this finding —
+    # judged per topic, not a flat per-severity bucket (a saturated disk and
+    # a cosmetic dashboard name both being "warning" doesn't mean they're
+    # equally urgent). None = purely informational, nothing to schedule.
+    deadline_days: int | None = None
 
 
 @dataclass

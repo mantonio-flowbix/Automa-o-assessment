@@ -16,6 +16,7 @@ and the reference deck itself never puts more than ~8 items on one slide.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from pptx import Presentation
@@ -299,7 +300,7 @@ def _table_header(slide, y, headers, col_x, col_w):
         _set_text(tf.paragraphs[0], text, 11, DARK, bold=True)
 
 
-def _table_row(slide, y, height, finding, col_x, col_w, striped):
+def _table_row(slide, y, height, finding, col_x, col_w, striped, now):
     if striped:
         _rect(slide, LEFT, y, CONTENT_W, height, fill=STRIPE_BG)
 
@@ -311,9 +312,14 @@ def _table_row(slide, y, height, finding, col_x, col_w, striped):
     desc_tf.vertical_anchor = MSO_ANCHOR.MIDDLE
     _set_text(desc_tf.paragraphs[0], _truncate(finding.description), 9.5, MUTED)
 
+    deadline_text = (now + timedelta(days=finding.deadline_days)).strftime("%d/%m/%y") if finding.deadline_days else "—"
+    deadline_tf = _textbox(slide, Emu(int(col_x[2]) + 45720), y, Emu(int(col_w[2]) - 91440), height)
+    deadline_tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    _set_text(deadline_tf.paragraphs[0], deadline_text, 9.5, DARK, align=PP_ALIGN.CENTER)
+
     label, color = PRIORITY[finding.severity]
     badge_w, badge_h = Emu(438912), Emu(228600)
-    bx = Emu(int(col_x[2]) + (int(col_w[2]) - int(badge_w)) // 2)
+    bx = Emu(int(col_x[3]) + (int(col_w[3]) - int(badge_w)) // 2)
     by = Emu(int(y) + (int(height) - int(badge_h)) // 2)
     _rect(slide, bx, by, badge_w, badge_h, fill=color, rounded=True)
     badge_tf = _textbox(slide, bx, by, badge_w, badge_h)
@@ -321,11 +327,13 @@ def _table_row(slide, y, height, finding, col_x, col_w, striped):
     _set_text(badge_tf.paragraphs[0], label, 8, WHITE, bold=True, align=PP_ALIGN.CENTER)
 
 
-def _section_slides(prs, section, section_findings):
+def _section_slides(prs, section, section_findings, now):
     ordered = sorted(section_findings, key=lambda f: SEVERITY_ORDER[f.severity])
-    col_w = [Emu(4114800), Emu(3200400), Emu(914400)]
-    col_x = [LEFT, Emu(int(LEFT) + int(col_w[0])), Emu(int(LEFT) + int(col_w[0]) + int(col_w[1]))]
-    headers = ["Achado", "Descrição", "Prio."]
+    col_w = [Emu(3474720), Emu(2834640), Emu(1005840), Emu(914400)]
+    col_x = [LEFT]
+    for w in col_w[:-1]:
+        col_x.append(Emu(int(col_x[-1]) + int(w)))
+    headers = ["Achado", "Descrição", "Prazo", "Prio."]
 
     pages = [ordered[i : i + ROWS_PER_PAGE] for i in range(0, len(ordered), ROWS_PER_PAGE)] or [[]]
     for page_idx, page_findings in enumerate(pages):
@@ -336,7 +344,7 @@ def _section_slides(prs, section, section_findings):
 
         y = Emu(int(TABLE_TOP) + int(HEADER_H))
         for i, finding in enumerate(page_findings):
-            _table_row(slide, y, ROW_H, finding, col_x, col_w, striped=(i % 2 == 1))
+            _table_row(slide, y, ROW_H, finding, col_x, col_w, striped=(i % 2 == 1), now=now)
             y = Emu(int(y) + int(ROW_H))
 
         if page_idx == len(pages) - 1 and ordered:
@@ -359,6 +367,7 @@ def _closing_slide(prs):
 
 
 def render(config, findings, output_path: str) -> str:
+    now = datetime.now()
     prs = Presentation()
     prs.slide_width = SLIDE_W
     prs.slide_height = SLIDE_H
@@ -373,7 +382,7 @@ def render(config, findings, output_path: str) -> str:
     _summary_slide(prs, findings)
 
     for section, section_findings in by_section.items():
-        _section_slides(prs, section, section_findings)
+        _section_slides(prs, section, section_findings, now)
 
     _closing_slide(prs)
 

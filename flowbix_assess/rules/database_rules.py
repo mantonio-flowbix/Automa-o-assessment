@@ -34,6 +34,7 @@ def _mysql_eol_finding(config, mysql: dict) -> list[Finding]:
         ),
         recommendation="Planejar atualização para uma versão com suporte ativo (ex.: 8.4 LTS).",
         evidence={"version": version, "eol": eol_str},
+        deadline_days=30 if severity == Severity.CRITICAL else 90,
     )]
 
 
@@ -67,6 +68,7 @@ def _partitioning_findings(config, mysql: dict) -> list[Finding]:
             "planejar limpeza de dados antigos não utilizados."
         ),
         evidence={"tables": offending, "total_gb": round(total_gb, 2)},
+        deadline_days=30 if severity == Severity.CRITICAL else 60,
     )]
 
 
@@ -108,6 +110,7 @@ def _history_age_finding(config, mysql: dict, zbx: dict) -> list[Finding]:
                 ),
                 recommendation="Investigar housekeeping e considerar limpeza manual + particionamento.",
                 evidence={"table": table, "age_days": round(age_days, 1)},
+                deadline_days=30,
             ))
     return findings
 
@@ -140,6 +143,7 @@ def _zabbix_compat_finding(config, mysql: dict) -> list[Finding]:
             f"o Zabbix {config.target_zabbix_version}."
         ),
         evidence={"version": version, "required": required, "target_zabbix": config.target_zabbix_version},
+        deadline_days=60,
     )]
 
 
@@ -176,6 +180,7 @@ def _tuning_findings(config, mysql: dict) -> list[Finding]:
             "innodb_io_capacity deve refletir o tipo de armazenamento (SSD/IOPS provisionado)."
         ),
         evidence=variables,
+        deadline_days=15 if issues else None,
     )]
 
 
@@ -214,6 +219,7 @@ def _growth_findings(config, mysql: dict, size_history: list | None = None) -> l
         ),
         recommendation="Dimensionar armazenamento e revisar retenção/particionamento considerando essa taxa.",
         evidence={"monthly_gb": round(monthly_gb, 1), "samples": len(size_history)},
+        deadline_days=45 if severity == Severity.WARNING else None,
     )]
 
 
@@ -232,6 +238,7 @@ def _backup_policy_manual_review(config) -> list[Finding]:
             "(ex.: mysqldump ignorando history/history_uint/history_text/trends)."
         ),
         evidence={},
+        deadline_days=30,
     )]
 
 
@@ -279,6 +286,7 @@ def _high_availability_cost_finding(config) -> list[Finding]:
         description=description,
         recommendation=recommendation,
         evidence={"hosting_type": hosting_type or "não informado"},
+        deadline_days=30,
     )]
 
 

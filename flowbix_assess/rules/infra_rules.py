@@ -58,6 +58,7 @@ def _os_compat_findings(config, infra: dict) -> list[Finding]:
                 ),
                 recommendation="Verificar manualmente a matriz oficial de SO suportado pelo Zabbix.",
                 evidence={"host": host, "os": os_info},
+                deadline_days=15,
             ))
         elif os_version not in supported_versions:
             upgrade_sequence_map = {
@@ -80,6 +81,7 @@ def _os_compat_findings(config, infra: dict) -> list[Finding]:
                 ),
                 recommendation=recommendation,
                 evidence={"host": host, "os": os_info, "supported": supported_versions, "upgrade_path": path},
+                deadline_days=60,
             ))
     return findings
 
@@ -113,6 +115,7 @@ def _resource_findings(config, infra: dict) -> list[Finding]:
                     ),
                     recommendation="Investigar processos consumindo CPU; considerar upgrade se sustentado.",
                     evidence={"host": host, **cpu},
+                    deadline_days=7 if severity == Severity.CRITICAL else 30,
                 ))
 
         memory = data.get("memory") or {}
@@ -131,6 +134,7 @@ def _resource_findings(config, infra: dict) -> list[Finding]:
                     description=f"{used_pct}% da memória em uso ({memory.get('total_mb')} MB total).",
                     recommendation="Avaliar aumento de memória ou revisar processos consumidores.",
                     evidence={"host": host, **memory},
+                    deadline_days=7 if severity == Severity.CRITICAL else 30,
                 ))
 
         for disk in data.get("disk", []):
@@ -151,6 +155,7 @@ def _resource_findings(config, infra: dict) -> list[Finding]:
                 description=f"{used_pct}% ocupado ({disk['used_gb']}GB de {disk['total_gb']}GB).",
                 recommendation="Liberar espaço ou expandir volume antes que afete a operação.",
                 evidence={"host": host, **disk},
+                deadline_days=7 if severity == Severity.CRITICAL else 30,
             ))
     return findings
 
@@ -178,6 +183,7 @@ def _zabbix_version_drift_findings(config, infra: dict, zbx: dict | None) -> lis
                     ),
                     recommendation="Confirmar se todos os componentes (server/proxies) estão na mesma versão major.minor.",
                     evidence={"host": host, "binary": binary, "installed": version, "api_version": api_version},
+                    deadline_days=30,
                 ))
     return findings
 
@@ -207,6 +213,7 @@ def _missing_ports_findings(config, infra: dict) -> list[Finding]:
                 ),
                 recommendation="Confirmar manualmente se o serviço está ativo e a porta liberada.",
                 evidence={"host": host, "missing_ports": missing, "role": role},
+                deadline_days=15,
             ))
     return findings
 
