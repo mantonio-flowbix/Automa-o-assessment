@@ -64,11 +64,16 @@ BLANK_LAYOUT = 6
 LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo.jpg"
 LOGO_ASPECT = 1697 / 447
 
-ROWS_PER_PAGE = 6
-ROW_H = Emu(420624)
+ROWS_PER_PAGE = 5
+ROW_H = Emu(548640)
 TABLE_TOP = Emu(1097280)
 HEADER_H = Emu(320040)
-DESCRIPTION_MAX_CHARS = 170
+# Calibrated against the actual column widths/fonts below (see
+# test_pptx_report.py's overflow check) so title/description reliably wrap
+# to at most 2 lines each and never bleed into the next row.
+TITLE_MAX_CHARS = 72
+DESCRIPTION_MAX_CHARS = 110
+CALLOUT_MAX_CHARS = 260
 
 
 def _slide(prs, bg):
@@ -143,7 +148,9 @@ def _footer(slide, text="Confidencial · Relatório Técnico"):
 
 def _callout_box(slide, label, text, y, height=Emu(822960)):
     """The reference deck's "Recomendação"/"Conclusão" pattern: a pale
-    green rounded box with a bold green label and dark body text."""
+    green rounded box with a bold green label and dark body text. Text is
+    truncated defensively — this box has a fixed height, and a long
+    recommendation/description would otherwise overflow its border."""
     _rect(slide, LEFT, y, CONTENT_W, height, fill=GREEN_BG, line_color=GREEN, line_width=Pt(1.5), rounded=True)
     label_w = Emu(1371600)
     tf = _textbox(slide, Emu(int(LEFT) + 137160), y, label_w, height)
@@ -151,7 +158,7 @@ def _callout_box(slide, label, text, y, height=Emu(822960)):
     _set_text(tf.paragraphs[0], label, 10, GREEN, bold=True)
     tf2 = _textbox(slide, Emu(int(LEFT) + 137160 + int(label_w)), y, Emu(6309360), height)
     tf2.vertical_anchor = MSO_ANCHOR.MIDDLE
-    _set_text(tf2.paragraphs[0], text, 11, DARK)
+    _set_text(tf2.paragraphs[0], _truncate(text, CALLOUT_MAX_CHARS), 11, DARK)
 
 
 # ---------------------------------------------------------------- opening
@@ -280,7 +287,7 @@ def _summary_slide(prs, findings):
 
     ordered = sorted(findings, key=lambda f: SEVERITY_ORDER[f.severity])
     conclusion = ordered[0].description if ordered else "Nenhum achado identificado nesta execução."
-    _callout_box(slide, "CONCLUSÃO", conclusion, y=Emu(3246120))
+    _callout_box(slide, "CONCLUSÃO", conclusion, y=Emu(3246120), height=Emu(1005840))
     _footer(slide)
     return slide
 
@@ -306,11 +313,11 @@ def _table_row(slide, y, height, finding, col_x, col_w, striped, now):
 
     title_tf = _textbox(slide, Emu(int(col_x[0]) + 45720), y, Emu(int(col_w[0]) - 91440), height)
     title_tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    _set_text(title_tf.paragraphs[0], finding.title, 10.5, DARK, bold=True)
+    _set_text(title_tf.paragraphs[0], _truncate(finding.title, TITLE_MAX_CHARS), 10.5, DARK, bold=True)
 
     desc_tf = _textbox(slide, Emu(int(col_x[1]) + 45720), y, Emu(int(col_w[1]) - 91440), height)
     desc_tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    _set_text(desc_tf.paragraphs[0], _truncate(finding.description), 9.5, MUTED)
+    _set_text(desc_tf.paragraphs[0], _truncate(finding.description, DESCRIPTION_MAX_CHARS), 9.5, MUTED)
 
     deadline_text = (now + timedelta(days=finding.deadline_days)).strftime("%d/%m/%y") if finding.deadline_days else "—"
     deadline_tf = _textbox(slide, Emu(int(col_x[2]) + 45720), y, Emu(int(col_w[2]) - 91440), height)
@@ -329,7 +336,7 @@ def _table_row(slide, y, height, finding, col_x, col_w, striped, now):
 
 def _section_slides(prs, section, section_findings, now):
     ordered = sorted(section_findings, key=lambda f: SEVERITY_ORDER[f.severity])
-    col_w = [Emu(3474720), Emu(2834640), Emu(1005840), Emu(914400)]
+    col_w = [Emu(2971800), Emu(3611880), Emu(822960), Emu(822960)]
     col_x = [LEFT]
     for w in col_w[:-1]:
         col_x.append(Emu(int(col_x[-1]) + int(w)))
