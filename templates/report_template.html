@@ -56,7 +56,20 @@
     border-radius: 10px;
     padding: 16px;
     text-align: center;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
+  .summary .card:hover { border-color: var(--red); }
+  .summary .card:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  .summary .card.active {
+    border-color: var(--red);
+    background: var(--critical-bg);
+    box-shadow: 0 0 0 1px var(--red);
+  }
+  .filter-status { font-size: 13px; color: var(--muted); margin: -12px 0 20px; }
+  [hidden] { display: none !important; }
   .summary .card .num { font-size: 28px; font-weight: 700; color: var(--red); }
   .summary .card .label { font-size: 13px; color: var(--muted); }
   section.topic { margin-bottom: 32px; }
@@ -134,13 +147,14 @@
 </div>
 {% endif %}
 
-<div class="summary">
-  <div class="card"><div class="num">{{ total_findings }}</div><div class="label">Total de achados</div></div>
-  <div class="card"><div class="num">{{ counts.get('critical', 0) }}</div><div class="label">Críticos</div></div>
-  <div class="card"><div class="num">{{ counts.get('warning', 0) }}</div><div class="label">Atenção</div></div>
-  <div class="card"><div class="num">{{ counts.get('info', 0) }}</div><div class="label">Informativos</div></div>
-  <div class="card"><div class="num">{{ counts.get('manual_review', 0) }}</div><div class="label">Revisão Manual</div></div>
+<div class="summary" role="group" aria-label="Filtrar achados por severidade">
+  <button type="button" class="card active" data-filter="all" aria-pressed="true"><div class="num">{{ total_findings }}</div><div class="label">Total de achados</div></button>
+  <button type="button" class="card" data-filter="critical" aria-pressed="false"><div class="num">{{ counts.get('critical', 0) }}</div><div class="label">Críticos</div></button>
+  <button type="button" class="card" data-filter="warning" aria-pressed="false"><div class="num">{{ counts.get('warning', 0) }}</div><div class="label">Atenção</div></button>
+  <button type="button" class="card" data-filter="info" aria-pressed="false"><div class="num">{{ counts.get('info', 0) }}</div><div class="label">Informativos</div></button>
+  <button type="button" class="card" data-filter="manual_review" aria-pressed="false"><div class="num">{{ counts.get('manual_review', 0) }}</div><div class="label">Revisão Manual</div></button>
 </div>
+<p class="filter-status" id="filter-status" aria-live="polite"></p>
 
 {% for section, findings in by_section.items() %}
 <section class="topic">
@@ -151,9 +165,6 @@
     <h3>{{ f.title }}</h3>
     <p>{{ f.description }}</p>
     <p class="recommendation"><strong>Recomendação:</strong> {{ f.recommendation }}</p>
-    {% if f.estimated_effort_hours %}
-    <p class="recommendation"><strong>Esforço estimado:</strong> {{ f.estimated_effort_hours }}h</p>
-    {% endif %}
     {% if f.deadline_days %}
     <p class="recommendation"><strong>Prazo sugerido:</strong> {{ f.deadline_days }} dias (até {{ f.deadline_days | deadline_date }})</p>
     {% endif %}
@@ -165,6 +176,41 @@
 </main>
 
 <footer>Gerado automaticamente por flowbix-assess · uso interno Flowbix</footer>
+
+<script>
+(function () {
+  var buttons = document.querySelectorAll('.summary .card');
+  var findings = document.querySelectorAll('.finding');
+  var topics = document.querySelectorAll('section.topic');
+  var status = document.getElementById('filter-status');
+  var labels = {
+    all: 'todos os achados', critical: 'achados críticos', warning: 'achados de atenção',
+    info: 'achados informativos', manual_review: 'achados de revisão manual'
+  };
+
+  function apply(filter) {
+    var shown = 0;
+    findings.forEach(function (el) {
+      var match = filter === 'all' || el.classList.contains(filter);
+      el.hidden = !match;
+      if (match) shown++;
+    });
+    topics.forEach(function (topic) {
+      topic.hidden = !topic.querySelector('.finding:not([hidden])');
+    });
+    buttons.forEach(function (b) {
+      var active = b.dataset.filter === filter;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    status.textContent = filter === 'all' ? '' : 'Mostrando ' + shown + ' de ' + findings.length + ' — ' + labels[filter] + '.';
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener('click', function () { apply(b.dataset.filter); });
+  });
+})();
+</script>
 
 </body>
 </html>

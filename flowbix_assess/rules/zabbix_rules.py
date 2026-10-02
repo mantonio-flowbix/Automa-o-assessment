@@ -147,7 +147,6 @@ def _master_item_history_findings(config, zbx: dict) -> list[Finding]:
         ),
         recommendation="Desabilitar histórico nos itens master; manter apenas nos dependentes.",
         evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
-        estimated_effort_hours=1.5 * len(matches),
         deadline_days=30,
     )]
 
@@ -441,7 +440,6 @@ def _excessive_preprocessing_findings(config, zbx: dict) -> list[Finding]:
             "JavaScript no lugar de múltiplos passos encadeados)."
         ),
         evidence={"templates": [{"template": t, "items": items} for t, items in matches]},
-        estimated_effort_hours=total_items * 2.0,
         deadline_days=45,
     )]
 
