@@ -359,6 +359,35 @@ def _section_slides(prs, section, section_findings, now):
         _footer(slide)
 
 
+EVIDENCE_SECTION_LABEL = "Evidências do ambiente"
+EVIDENCE_TOP = 1005840
+EVIDENCE_MAX_H = 3474720
+
+
+def _evidence_slides(prs, screenshots):
+    """One slide per Zabbix frontend capture: the image scaled to fit (aspect
+    preserved, thin border) with a caption saying when/where it was taken."""
+    from PIL import Image
+
+    for shot in screenshots:
+        slide = _slide(prs, WHITE)
+        _eyebrow_and_title(slide, f"EVIDÊNCIA · {shot['section'].upper()}", _truncate(shot["title"], 60))
+
+        with Image.open(shot["path"]) as img:
+            img_w, img_h = img.size
+        scale = min(int(CONTENT_W) / img_w, EVIDENCE_MAX_H / img_h)
+        w, h = int(img_w * scale), int(img_h * scale)
+        x = (int(SLIDE_W) - w) // 2
+
+        _rect(slide, Emu(x - 12700), Emu(EVIDENCE_TOP - 12700), Emu(w + 25400), Emu(h + 25400), line_color=BORDER)
+        slide.shapes.add_picture(shot["path"], Emu(x), Emu(EVIDENCE_TOP), width=Emu(w), height=Emu(h))
+
+        captured = datetime.fromisoformat(shot["captured_at"]).strftime("%d/%m/%Y %H:%M")
+        caption = _textbox(slide, LEFT, Emu(EVIDENCE_TOP + h + 91440), CONTENT_W, Emu(228600))
+        _set_text(caption.paragraphs[0], f"Capturado em {captured} · {shot['screen']}", 9, MUTED, align=PP_ALIGN.CENTER)
+        _footer(slide)
+
+
 def _closing_slide(prs):
     slide = _slide(prs, CLOSE_BG)
     logo_h = Emu(600000)
@@ -373,7 +402,7 @@ def _closing_slide(prs):
     return slide
 
 
-def render(config, findings, output_path: str) -> str:
+def render(config, findings, output_path: str, screenshots=None) -> str:
     now = datetime.now()
     prs = Presentation()
     prs.slide_width = SLIDE_W
@@ -385,11 +414,15 @@ def render(config, findings, output_path: str) -> str:
 
     _cover_slide(prs, config, len(findings))
     _contact_summary_slide(prs, findings)
-    _index_slide(prs, list(by_section.keys()))
+    index_sections = list(by_section.keys()) + ([EVIDENCE_SECTION_LABEL] if screenshots else [])
+    _index_slide(prs, index_sections)
     _summary_slide(prs, findings)
 
     for section, section_findings in by_section.items():
         _section_slides(prs, section, section_findings, now)
+
+    if screenshots:
+        _evidence_slides(prs, screenshots)
 
     _closing_slide(prs)
 

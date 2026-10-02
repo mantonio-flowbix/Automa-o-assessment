@@ -77,3 +77,61 @@ def test_table_rows_fit_within_the_space_reserved_before_the_callout_box():
     rows_bottom = int(pr.TABLE_TOP) + int(pr.HEADER_H) + pr.ROWS_PER_PAGE * int(pr.ROW_H)
     callout_y = 4160520
     assert rows_bottom <= callout_y
+
+
+def _fake_screenshot(tmp_path, key="proxies", title="Proxies: status, versão e PSK", section="Arquitetura do Ambiente"):
+    from PIL import Image
+
+    image_path = tmp_path / f"{key}.png"
+    Image.new("RGB", (1600, 900), (240, 240, 240)).save(image_path)
+    return {
+        "key": key, "section": section, "title": title,
+        "screen": "zabbix.php?action=proxy.list", "path": str(image_path),
+        "captured_at": "2026-10-02T11:20:00", "status": "ok",
+    }
+
+
+def _demo_config():
+    from flowbix_assess.config import Config
+
+    return Config({"client": {"name": "Cliente Demo", "target_zabbix_version": "7.0"}})
+
+
+def _render(tmp_path, screenshots):
+    finding = Finding(section="Banco de Dados", title="T", severity=Severity.INFO, description="d", recommendation="r")
+    out = tmp_path / "deck.pptx"
+    pr.render(_demo_config(), [finding], str(out), screenshots=screenshots)
+    return list(Presentation(str(out)).slides)
+
+
+def _slide_texts(slide):
+    return [s.text_frame.text for s in slide.shapes if s.has_text_frame]
+
+
+def test_evidence_slides_are_added_before_closing_and_listed_in_the_index(tmp_path):
+    without = _render(tmp_path, None)
+    shots = [_fake_screenshot(tmp_path), _fake_screenshot(tmp_path, "queue", "Fila de itens (queue)", "Processamento das Máquinas")]
+    with_shots = _render(tmp_path, shots)
+
+    assert len(with_shots) == len(without) + 2
+    assert not any("Evidências do ambiente" in t for t in _slide_texts(without[2]))
+    assert any("Evidências do ambiente" in t for t in _slide_texts(with_shots[2]))
+
+    first_evidence = with_shots[-3]
+    texts = _slide_texts(first_evidence)
+    assert "EVIDÊNCIA · ARQUITETURA DO AMBIENTE" in texts
+    assert "Proxies: status, versão e PSK" in texts
+    assert any(t.startswith("Capturado em 02/10/2026 11:20 · zabbix.php?action=proxy.list") for t in texts)
+    # last slide is still the closing one
+    assert any("Fale conosco" in t for t in _slide_texts(with_shots[-1]))
+
+
+def test_evidence_picture_keeps_aspect_ratio_and_stays_inside_the_content_area(tmp_path):
+    slides = _render(tmp_path, [_fake_screenshot(tmp_path)])
+    evidence = slides[-2]
+    picture = next(s for s in evidence.shapes if s.shape_type == 13)  # MSO_SHAPE_TYPE.PICTURE
+
+    assert abs(picture.width / picture.height - 16 / 9) < 0.01
+    assert picture.width <= int(pr.CONTENT_W)
+    assert picture.top + picture.height < 4846320  # above the footer
+    assert abs((picture.left + picture.width / 2) - int(pr.SLIDE_W) / 2) < 2  # centered

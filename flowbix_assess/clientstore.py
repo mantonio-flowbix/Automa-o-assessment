@@ -1,9 +1,11 @@
 """Per-client storage layout shared by the CLI and the web front-end.
 
 Everything for a client lives under data/clients/<slug>/:
-  config.yaml   — credentials + thresholds (plaintext on disk, local tool only)
+  config.yaml   — URLs, thresholds and `${VAR}` placeholders (no secrets)
+  .env          — the real tokens/passwords those placeholders resolve to
   infra/        — where probe/flowbix_probe.py JSON outputs get dropped
-  reports/      — generated HTML reports, timestamped
+  screenshots/  — Zabbix frontend captures used as PPTX evidence slides
+  reports/      — generated HTML/PPTX reports, timestamped
   _last_run/    — raw collector output from the most recent run, used to
                   hand data between the front-end's step-by-step endpoints
 """
@@ -30,12 +32,13 @@ class ClientStore:
         self.root = CLIENTS_DIR / slug
         self.infra_dir = self.root / "infra"
         self.reports_dir = self.root / "reports"
+        self.screenshots_dir = self.root / "screenshots"
         self.run_dir = self.root / "_last_run"
         self.config_path = self.root / "config.yaml"
         self.env_path = self.root / ".env"
 
     def ensure(self):
-        for d in (self.root, self.infra_dir, self.reports_dir, self.run_dir):
+        for d in (self.root, self.infra_dir, self.reports_dir, self.screenshots_dir, self.run_dir):
             d.mkdir(parents=True, exist_ok=True)
 
     def save_config(self, raw: dict):
@@ -122,6 +125,13 @@ class ClientStore:
         for path in files:
             path.unlink()
         return len(files)
+
+    def clear_screenshots(self) -> None:
+        """Removes previous Zabbix screenshots so a new run never mixes old
+        and new captures in the same deck."""
+        self.ensure()
+        for path in self.screenshots_dir.glob("*.png"):
+            path.unlink()
 
     def last_report_at(self):
         """Modification time of the most recently generated report, or

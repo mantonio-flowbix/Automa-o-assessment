@@ -34,6 +34,7 @@ from flowbix_assess.clientstore import ClientStore, slugify
 from flowbix_assess.collectors import infra_local
 from flowbix_assess.collectors import mysql_collector
 from flowbix_assess.collectors import zabbix as zabbix_collector
+from flowbix_assess.collectors import zabbix_screenshots
 from flowbix_assess.config import Config
 from flowbix_assess.models import CollectionResult
 from flowbix_assess.pptx_report import render as render_pptx
@@ -49,6 +50,7 @@ STEP_LABELS = {
     "zabbix": "Zabbix API",
     "mysql": "MySQL",
     "infra": "Infraestrutura",
+    "screenshots": "Prints do Zabbix",
     "report": "Relatório final",
 }
 
@@ -94,6 +96,11 @@ def _build_raw_config(form, existing: dict) -> tuple[dict, dict]:
             "hosts_of_interest": [h["name"] for h in infra_hosts],
         }
         secrets["ZABBIX_TOKEN"] = form.get("zabbix_token") or ""
+        frontend_user = form.get("zabbix_frontend_user")
+        if frontend_user:
+            raw["zabbix"]["frontend_user"] = frontend_user
+            raw["zabbix"]["frontend_password"] = "${ZABBIX_FRONT_PASSWORD}"
+            secrets["ZABBIX_FRONT_PASSWORD"] = form.get("zabbix_frontend_password") or ""
         if form.get("zabbix_template_limit"):
             raw["zabbix"]["template_limit"] = int(form["zabbix_template_limit"])
 
@@ -188,6 +195,7 @@ def client_page(slug):
         infra_files=infra_files,
         reports=reports,
         has_zabbix_token=bool(env.get("ZABBIX_TOKEN")),
+        has_zabbix_front_password=bool(env.get("ZABBIX_FRONT_PASSWORD")),
         has_mysql_password=bool(env.get("MYSQL_PASSWORD")),
         has_grafana_token=bool(env.get("GRAFANA_TOKEN")),
         zabbix_token_expired=_token_expired(raw.get("zabbix")),
@@ -303,6 +311,29 @@ def run_step(slug, step):
                 "hosts": list(data.get("hosts", {}).keys()),
             }})
 
+        if step == "screenshots":
+            zbx = config.zabbix or {}
+            if not (zbx.get("url") and zbx.get("frontend_user") and zbx.get("frontend_password")):
+                return jsonify({"status": "skipped", "message": "Usuário do frontend do Zabbix não configurado"})
+            store.clear_screenshots()
+            captures = zabbix_screenshots.capture(
+                zbx, zbx["frontend_user"], zbx["frontend_password"],
+                store.load_run_artifact("zabbix").get("dashboards", []),
+                store.screenshots_dir,
+            )
+            store.save_run_artifact("screenshots", {"captures": captures})
+            ok = [c for c in captures if c["status"] == "ok"]
+            problems = [
+                c["message"] if c["key"] == "login" else f"{c['title']} ({c['message']})"
+                for c in captures if c["status"] != "ok"
+            ]
+            if not ok:
+                return jsonify({"status": "error", "message": problems[0] if problems else "Nenhum print capturado"})
+            message = f"{len(ok)} print(s) capturado(s)"
+            if problems:
+                message += "; não capturados: " + "; ".join(problems)
+            return jsonify({"status": "ok", "message": message, "summary": {"prints": len(ok), "falhas": len(problems)}})
+
         if step == "report":
             collection = CollectionResult(
                 zabbix=store.load_run_artifact("zabbix"),
@@ -317,7 +348,12 @@ def run_step(slug, step):
             render_report(config, findings, str(report_path))
 
             pptx_path = store.reports_dir / f"apresentacao-{timestamp}.pptx"
-            render_pptx(config, findings, str(pptx_path))
+            shots = [
+                {**c, "path": str(store.screenshots_dir / c["file"])}
+                for c in store.load_run_artifact("screenshots").get("captures", [])
+                if c["status"] == "ok" and (store.screenshots_dir / c["file"]).exists()
+            ]
+            render_pptx(config, findings, str(pptx_path), screenshots=shots)
 
             return jsonify({
                 "status": "ok",

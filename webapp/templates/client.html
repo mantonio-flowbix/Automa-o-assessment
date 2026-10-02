@@ -49,6 +49,11 @@
       <input type="password" name="zabbix_token" placeholder="{{ '(mantém o salvo se deixar em branco)' if has_zabbix_token else '' }}">
       <label>Validade do token</label>
       <input type="date" name="zabbix_token_expires_at" value="{{ raw.zabbix.token_expires_at if raw.zabbix else '' }}">
+      <p class="hint" style="margin-top:16px"><strong>Prints da interface (opcional).</strong> O token de API não entra na tela web, então os prints precisam de um login do frontend — use um usuário <strong>dedicado</strong>. As telas de Administração (fila, proxies, media types, housekeeping, informações do sistema) só abrem com perfil Super admin; num usuário comum elas são puladas. A ferramenta só visualiza (faz login e abre as telas), nunca altera nada.</p>
+      <label>Usuário do frontend</label>
+      <input type="text" name="zabbix_frontend_user" value="{{ raw.zabbix.frontend_user if raw.zabbix and raw.zabbix.frontend_user else '' }}" autocomplete="off">
+      <label>Senha do frontend</label>
+      <input type="password" name="zabbix_frontend_password" autocomplete="new-password" placeholder="{{ '(mantém a salva se deixar em branco)' if has_zabbix_front_password else '' }}">
     </fieldset>
 
     <fieldset>
@@ -121,7 +126,7 @@
 
 <section class="card">
   <h2>Rodar validação</h2>
-  <p class="hint">Roda Zabbix → MySQL → Infraestrutura (o que estiver configurado/disponível) e gera o relatório consolidado. Uma fonte que falhar não impede as outras.</p>
+  <p class="hint">Roda Zabbix → MySQL → Infraestrutura → Prints do Zabbix (o que estiver configurado/disponível) e gera o relatório consolidado. Uma fonte que falhar não impede as outras.</p>
   <button id="run-btn">Rodar validação</button>
   <ul id="steps"></ul>
   <div id="result"></div>
@@ -169,6 +174,7 @@ const STEP_LABELS = {
   zabbix: 'Zabbix API',
   mysql: 'MySQL',
   infra: 'Infraestrutura',
+  screenshots: 'Prints do Zabbix',
   report: 'Gerando relatório final',
 };
 
@@ -221,7 +227,7 @@ document.getElementById('run-btn').addEventListener('click', async () => {
   const originalLabel = runBtn.textContent;
   runBtn.textContent = 'Rodando...';
 
-  for (const step of ['zabbix', 'mysql', 'infra', 'report']) {
+  for (const step of ['zabbix', 'mysql', 'infra', 'screenshots', 'report']) {
     const li = document.createElement('li');
     renderStep(li, step, 'pending', '');
     stepsEl.appendChild(li);
@@ -230,7 +236,7 @@ document.getElementById('run-btn').addEventListener('click', async () => {
       const resp = await fetch(`/clients/${slug}/run/${step}`, { method: 'POST' });
       const data = await resp.json();
       if (data.status === 'ok') {
-        renderStep(li, step, 'ok', JSON.stringify(data.summary));
+        renderStep(li, step, 'ok', data.message || JSON.stringify(data.summary));
       } else if (data.status === 'skipped') {
         renderStep(li, step, 'skipped', data.message);
       } else {

@@ -13,7 +13,10 @@ simplesmente não aparece no relatório.
 Tudo é **read-only**: só métodos `*.get` na API do Zabbix, só `SELECT` no
 MySQL, e o probe de infraestrutura só lê `/proc`, `/etc/os-release` e chama
 `ss`/binários `zabbix_*` com `-V`. Nada aqui escreve ou altera o ambiente do
-cliente.
+cliente. Única ressalva: os **prints do frontend** (opcional, ver seção
+"Prints do Zabbix no PPTX") exigem um login web — a ferramenta só faz login e
+abre telas (nunca clica, salva ou edita), mas as telas de Administração só
+abrem com perfil Super admin, então use um usuário dedicado.
 
 ## As três fontes de dado e como cada uma chega no relatório
 
@@ -208,6 +211,39 @@ genérico (sem logo/identidade visual); se a Flowbix tiver um `.pptx` oficial
 de marca, dá pra adaptar `pptx_report.py` para carregar esse arquivo como
 base em vez de criar uma apresentação em branco.
 
+## Prints do Zabbix no PPTX
+
+Com um usuário do frontend configurado (campos "Usuário/Senha do frontend" na
+seção do Zabbix), a validação ganha o passo **Prints do Zabbix**: um Chromium
+headless faz login, abre as telas que sustentam os achados e anexa cada uma
+como slide de evidência ("Evidências do ambiente", antes do encerramento),
+com data/hora e a tela de origem na legenda. Sem usuário configurado o passo é
+pulado e o PPTX sai como antes.
+
+| Seção | Tela capturada | Exige Super admin |
+|---|---|---|
+| Arquitetura | Informações do sistema · Proxies | sim · sim |
+| Processamento | Dashboard "Zabbix server health" · Fila de itens | não · sim |
+| Templates | Itens unsupported · Lista de templates | não · não |
+| Mídias | Media types | sim |
+| Banco de Dados | Housekeeping | sim |
+| Dashboards | Lista de dashboards | não |
+| Infraestrutura | Hosts monitorados | não |
+
+Cuidados:
+
+- Use um usuário **dedicado** ao assessment, senha forte, nunca reaproveite uma
+  conta pessoal. A senha fica só no `.env` do cliente (como o token de API).
+- Telas sem permissão (usuário comum nas telas de Administração), inexistentes
+  ou que devolvam página de erro **não viram slide**: aparecem listadas como
+  "não capturados" no resultado do passo, com o motivo.
+- Os prints podem conter nomes de hosts/IPs do cliente e ficam em
+  `data/clients/<slug>/screenshots/` — revise o deck antes de enviar.
+- As URLs seguem o Zabbix 7.0; em outra versão alguma tela pode mudar de
+  endereço e falhar (o motivo aparece no resultado).
+- A imagem Docker inclui o Chromium (`playwright install --with-deps
+  chromium`), então o primeiro `docker compose up --build` demora mais.
+
 ## Ambiente: nuvem, on-premise ou híbrido
 
 O motor de regras não assume AWS/nuvem — SO, CPU/RAM/disco e as checagens de
@@ -276,8 +312,6 @@ sumirem:
   excesso de rows/painéis) — precisa baixar o JSON model de cada dashboard.
 - Detecção mais precisa de objetos JavaScript deprecados em media types
   (v1 usa uma lista de nomes configurável, não faz parsing do script).
-- Print de tela das validações do Zabbix para anexar ao PPT — em avaliação
-  (depende de login no frontend, não só o token de API).
 
 ## Estrutura
 
@@ -289,7 +323,7 @@ webapp/
   app.py                # front-end Flask (credenciais + validação passo a passo)
   templates/, static/    # HTML/CSS do front
 flowbix_assess/
-  collectors/     # Zabbix API, MySQL, leitura dos JSONs de infra, Grafana API
+  collectors/     # Zabbix API, MySQL, leitura dos JSONs de infra, Grafana API, prints do frontend Zabbix
   rules/          # motor de regras por fonte, thresholds vêm do config
   clientstore.py  # layout de pastas por cliente (usado pelo front)
   config.py       # carrega YAML com interpolação de ${ENV_VAR}
